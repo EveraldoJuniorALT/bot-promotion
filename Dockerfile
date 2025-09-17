@@ -3,6 +3,7 @@ WORKDIR /app
 COPY pom.xml .
 COPY .mvn/ .mvn
 COPY mvnw .
+RUN chmod +x ./mvnw
 COPY src ./src
 RUN ./mvnw clean package -DskipTests
 FROM openjdk:21-slim
