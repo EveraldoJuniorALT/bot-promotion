@@ -1,6 +1,8 @@
 package bot.promotion.service;
 
 import bot.promotion.dto.TokenResponse;
+import bot.promotion.model.Token;
+import bot.promotion.repository.TokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -24,10 +26,12 @@ public class AliexpressAuthService {
     private String tokenUrl;
 
     private final RestTemplate restTemplate;
+    private final TokenRepository tokenRepository;
 
     @Autowired
-    public AliexpressAuthService(RestTemplate restTemplate) {
+    public AliexpressAuthService(RestTemplate restTemplate, TokenRepository tokenRepository) {
         this.restTemplate = restTemplate;
+        this.tokenRepository = tokenRepository;
     }
 
     public void exchangeCodeForToken(String code, String callbackUrl){
@@ -49,8 +53,16 @@ public class AliexpressAuthService {
             if(tokenResponse == null || tokenResponse.getAccessToken() == null){
                 System.out.println("Error: Answer from API is null in line 46 on AliexpressAuthService.exchangeCodeForToken");
             }
-            System.out.println("Successfully! access token received" + tokenResponse.getAccessToken());
-            System.out.println("Refresh token received" + tokenResponse.getRefreshToken());
+
+            Token tokenEntity = new Token(
+                    "aliexpress_token",
+                    tokenResponse.getAccessToken(),
+                    tokenResponse.getRefreshToken(),
+                    tokenResponse.getExpiresIn()
+            );
+
+            tokenRepository.save(tokenEntity);
+            System.out.println("Saved in DB successfully");
 
         } catch (Exception e) {
             System.out.println("Error in line 51 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
