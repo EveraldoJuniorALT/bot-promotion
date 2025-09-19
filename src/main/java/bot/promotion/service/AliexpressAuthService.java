@@ -51,7 +51,7 @@ public class AliexpressAuthService {
             TokenResponse tokenResponse = restTemplate.postForObject(tokenUrl, request, TokenResponse.class);
 
             if(tokenResponse == null || tokenResponse.getAccessToken() == null){
-                System.out.println("Error: Answer from API is null in line 46 on AliexpressAuthService.exchangeCodeForToken");
+                System.out.println("Error: Answer from API is null in line 54 on AliexpressAuthService.exchangeCodeForToken");
             }
 
             Token tokenEntity = new Token(
@@ -65,7 +65,7 @@ public class AliexpressAuthService {
             System.out.println("Saved in DB successfully");
 
         } catch (Exception e) {
-            System.out.println("Error in line 51 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
+            System.out.println("Error in line 68 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
         }
     }
 }
