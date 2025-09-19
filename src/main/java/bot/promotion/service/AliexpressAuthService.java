@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
@@ -52,6 +53,7 @@ public class AliexpressAuthService {
 
             if(tokenResponse == null || tokenResponse.getAccessToken() == null){
                 System.out.println("Error: Answer from API is null in line 54 on AliexpressAuthService.exchangeCodeForToken");
+                return;
             }
 
             Token tokenEntity = new Token(
@@ -64,6 +66,9 @@ public class AliexpressAuthService {
             tokenRepository.save(tokenEntity);
             System.out.println("Saved in DB successfully");
 
+        } catch (HttpClientErrorException e) {
+            System.err.println("Http error when calling ALiexpress API, Line 70 on AliexpressAuthService: " + e.getStatusCode());
+            System.err.println("Error responde body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
             System.out.println("Error in line 68 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
         }

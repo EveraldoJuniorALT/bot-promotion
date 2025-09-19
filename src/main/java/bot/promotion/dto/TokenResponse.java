@@ -6,11 +6,11 @@ import lombok.Data;
 @Data
 public class TokenResponse {
     @JsonProperty("access_token")
-    private String AccessToken;
+    private String accessToken;
 
     @JsonProperty("refresh_token")
-    private String RefreshToken;
+    private String refreshToken;
 
     @JsonProperty("expires_in")
-    private String ExpiresIn;
+    private Long expiresIn;
 }
