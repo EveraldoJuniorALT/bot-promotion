@@ -54,6 +54,13 @@
         </dependency>
 
         <dependency>
+            <groupId>com.aliexpress.sdk</groupId>
+            <artifactId>gop-sdk-java</artifactId>
+            <version>1.0.0</version> <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/gop-sdk-Java1701065323525.jar</systemPath>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
