@@ -20,9 +20,7 @@ public class CallbackController {
     public String handleAliexpressCallback(@RequestParam("code") String authorizationCode) {
         System.out.println("Callback received! authorizationCode: " + authorizationCode);
 
-        String callbackUrl = "https://bot-promotion.onrender.com/callback";
-
-        authService.exchangeCodeForToken(authorizationCode, callbackUrl);
+        authService.exchangeCodeForToken(authorizationCode);
         return "Authentication in progress, check the server log";
     }
 }
