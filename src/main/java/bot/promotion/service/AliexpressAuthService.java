@@ -30,7 +30,7 @@ public class AliexpressAuthService {
     @Value("${aliexpress.app.secret}")
     private String appSecret;
 
-    @Value("${aliexpress.api.token-base-url}")
+    @Value("${aliexpress.api.token-base-url-http}")
     private String baseUrl;
 
     @Value("${aliexpress.api.name-url}")
@@ -150,7 +150,7 @@ public class AliexpressAuthService {
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
             System.err.println("Http error when calling Ali API in line 152 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
-            System.err.println("Error responde body: " + e.getResponseBodyAsString());
+            System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
             System.out.println("Error in line 155 on AliexpressAuthService.refreshToken" + e.getMessage());
         }
