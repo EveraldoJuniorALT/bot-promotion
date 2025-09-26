@@ -68,15 +68,15 @@ public class AliexpressAuthService {
 
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
 
-            String key = "";
+            StringBuilder key = new StringBuilder();
             for (Map.Entry<String, String> entry : paramsForSign.entrySet()) {
-                key += "&" + entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), "utf-8");
+                key.append("&").append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), "utf-8"));
             }
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
             ResponseEntity<TokenResponse> tokenResponse = restTemplate.postForEntity(baseUrl + apiName + "?" + key, request, TokenResponse.class);
-            if (tokenResponse == null || tokenResponse.getBody().getAccessToken() == null) {
+            if (tokenResponse.getBody().getAccessToken() == null) {
                 System.out.println("Error: Answer from API is null in line 80 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
@@ -93,7 +93,7 @@ public class AliexpressAuthService {
 
         } catch (HttpClientErrorException e) {
             System.err.println("Http error when calling Aliexpress API, Line 95 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
-            System.err.println("Error responde body: " + e.getResponseBodyAsString());
+            System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
             System.out.println("Error in line 98 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
         }
@@ -128,16 +128,16 @@ public class AliexpressAuthService {
 
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
 
-            String key = "";
+            StringBuilder key = new StringBuilder();
             for (Map.Entry<String, String> entry : paramsForSign.entrySet()) {
-                key += "&" + entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), "utf-8");
+                key.append("&").append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), "utf-8"));
             }
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
             ResponseEntity<TokenResponse> tokenResponse = restTemplate.postForEntity(baseUrl + refreshTokenApiName + "?" + key, request, TokenResponse.class);
 
-            if (tokenResponse == null || tokenResponse.getBody().getAccessToken() == null) {
+            if (tokenResponse.getBody().getAccessToken() == null) {
                 System.out.println("Answer from API is null, access token not renewed. Line 141 ");
             }
 
