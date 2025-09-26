@@ -45,7 +45,6 @@ public class AffiliateService {
 
         try {
             AliexpressAffiliateLinkGenerateResponse linkResponse = iopClient.execute(request, accessToken);
-            System.out.println(linkResponse.getGopResponseBody());
             if (!linkResponse.isSuccess()) {
                 System.out.println("Error answer from API is null in line 52");
                 return null;
