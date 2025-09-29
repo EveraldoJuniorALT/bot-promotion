@@ -10,7 +10,7 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HotProductResponse {
     @JsonProperty("resp_result")
-    private String MainResponse;
+    private MainResponse respResult;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)

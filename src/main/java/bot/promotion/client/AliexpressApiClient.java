@@ -30,39 +30,42 @@ public class AliexpressApiClient {
         this.objectMapper = objectMapper;
     }
 
-    public void getHotProduct(String fields) {
+    public HotProductResponse getHotProduct(int pageNo) {
         Optional<Token> tokenDB = tokenRepository.findById("aliexpress_token");
         if (tokenDB.isEmpty()) {
             System.out.println("Response from DB about token not found");
-            return;
+            return null;
         }
         String accessToken = tokenDB.get().getAccessToken();
 
-        AliexpressAffiliateHotproductQueryRequest request = getAliexpressAffiliateHotproductQueryRequest();
+        AliexpressAffiliateHotproductQueryRequest request = getAliexpressAffiliateHotproductQueryRequest(pageNo);
 
         try {
             AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
                 System.out.println("Error answer from API is null in line 52");
-                return;
+                return null;
             }
             
             String jsonBody = responseApi.getGopResponseBody();
-            objectMapper.readValue(jsonBody, HotProductResponse.class);
+            return objectMapper.readValue(jsonBody, HotProductResponse.class);
 
         } catch (ApiException e) {
             System.out.println("Error get hot products in line 60 on getHotProduct" + e.getMessage());
+            return null;
         } catch (Exception e) {
             System.out.println("Error get hot products in line 63 on  getHotProduct" + e.getMessage());
+            return null;
         }
     }
 
-    private AliexpressAffiliateHotproductQueryRequest getAliexpressAffiliateHotproductQueryRequest() {
+    private AliexpressAffiliateHotproductQueryRequest getAliexpressAffiliateHotproductQueryRequest(int pageNo) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
         request.addApiParameter("category_ids", "7, 44");
+        request.addApiParameter("fields", "product_id,product_title,target_original_price,target_sale_price,product_main_image_url");
         request.addApiParameter("min_sale_price", "20");
         request.addApiParameter("max_sale_price", "2000");
-        request.addApiParameter("page_no", "1");
+        request.addApiParameter("page_no", String.valueOf(pageNo));
         request.addApiParameter("page_size", "50");
         request.addApiParameter("platform_product_type", "all");
         request.addApiParameter("sort", "SALE_PRICE_ASC" );
