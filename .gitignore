@@ -19,6 +19,7 @@ target/
 *.iml
 *.ipr
 
+#git ignore
 application-dev.properties
 
 ### NetBeans ###

@@ -37,42 +37,45 @@ public class AliexpressApiClient {
             return null;
         }
         String accessToken = tokenDB.get().getAccessToken();
-
-        AliexpressAffiliateHotproductQueryRequest request = getAliexpressAffiliateHotproductQueryRequest(pageNo);
+        if (accessToken == null) {
+            System.out.println("Access token is null in line 41");
+            return null;
+        }
+        AliexpressAffiliateHotproductQueryRequest request = getHotproductQueryRequest(pageNo);
 
         try {
             AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
-                System.out.println("Error answer from API is null in line 52");
+                System.out.println("Error answer from API is null in line 49");
                 return null;
             }
-            
+
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, HotProductResponse.class);
 
         } catch (ApiException e) {
-            System.out.println("Error get hot products in line 60 on getHotProduct" + e.getMessage());
+            System.out.println("Error get hot products in line 57 on getHotProduct" + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.out.println("Error get hot products in line 63 on  getHotProduct" + e.getMessage());
+            System.out.println("Error get hot products in line 60 on  getHotProduct" + e.getMessage());
             return null;
         }
     }
 
-    private AliexpressAffiliateHotproductQueryRequest getAliexpressAffiliateHotproductQueryRequest(int pageNo) {
+    private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
-        request.addApiParameter("category_ids", "7, 44");
-        request.addApiParameter("fields", "product_id,product_title,target_original_price,target_sale_price,product_main_image_url");
-        request.addApiParameter("min_sale_price", "20");
-        request.addApiParameter("max_sale_price", "2000");
-        request.addApiParameter("page_no", String.valueOf(pageNo));
-        request.addApiParameter("page_size", "50");
-        request.addApiParameter("platform_product_type", "all");
-        request.addApiParameter("sort", "SALE_PRICE_ASC" );
-        request.addApiParameter("target_currency", "BRL");
-        request.addApiParameter("target_language", "PT-BR");
-        request.addApiParameter("tracking_id", trackingId);
-        request.addApiParameter("ship_to_country", "BR");
+        request.setCategoryIds("7, 44");
+        request.setFields("tax_rate,product_id,product_title,product_main_image_url,target_app_sale_price,promo_code_info");
+        request.setMinSalePrice(20L);
+        request.setMaxSalePrice(2000L);
+        request.setPageNo(Long.valueOf(pageNo));
+        request.setPageSize(50L);
+        request.setPlatformProductType("ALL");
+        request.setSort("SALE_PRICE_ASC");
+        request.setTargetCurrency("BRL");
+        request.setTargetLanguage("PT-BR");
+        request.setTrackingId(trackingId);
+        request.setShipToCountry("BR");
         return request;
     }
 }

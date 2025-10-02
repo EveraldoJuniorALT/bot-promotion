@@ -28,7 +28,7 @@ public class ProductUrlService {
         return coinUrl(matcher.group(1));
     }
 
-    private String coinUrl(String productId) {
+    public String coinUrl(String productId) {
         if (productId == null) throw new IllegalArgumentException("productId is null");
 
         return affiliateService.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId);
