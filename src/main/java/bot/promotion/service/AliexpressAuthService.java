@@ -8,35 +8,15 @@ import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
 import com.global.iop.api.IopResponse;
 import com.global.iop.domain.Protocol;
-import com.global.iop.util.IopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
-import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class AliexpressAuthService {
-
-    @Value("${aliexpress.app.key}")
-    private String appKey;
-
-    @Value("${aliexpress.app.secret}")
-    private String appSecret;
-
-    @Value("${aliexpress.api.token-base-url-http}")
-    private String baseUrl;
 
     @Value("${aliexpress.api.name-url}")
     private String apiName;
