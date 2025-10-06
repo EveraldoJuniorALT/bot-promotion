@@ -3,6 +3,11 @@ package bot.promotion.service;
 import bot.promotion.dto.TokenResponse;
 import bot.promotion.model.Token;
 import bot.promotion.repository.TokenRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.global.iop.api.IopClient;
+import com.global.iop.api.IopRequest;
+import com.global.iop.api.IopResponse;
+import com.global.iop.domain.Protocol;
 import com.global.iop.util.IopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,63 +44,47 @@ public class AliexpressAuthService {
     @Value("${aliexpress.api.refresh-name-url}")
     private String refreshTokenApiName;
 
-    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private final TokenRepository tokenRepository;
+    private final IopClient iopClient;
 
     @Autowired
-    public AliexpressAuthService(RestTemplate restTemplate, TokenRepository tokenRepository) {
-        this.restTemplate = restTemplate;
+    public AliexpressAuthService(ObjectMapper objectMapper, TokenRepository tokenRepository, IopClient iopClient) {
+        this.iopClient = iopClient;
+        this.objectMapper = objectMapper;
         this.tokenRepository = tokenRepository;
     }
 
     public void exchangeCodeForToken(String code) {
         try {
-            long time = System.currentTimeMillis();
-            String timeStamp = Long.toString(time);
+            IopRequest iopRequest = new IopRequest();
+            iopRequest.setApiName(apiName);
+            iopRequest.addApiParameter("code", code);
 
-            Map<String, String> paramsForSign = new HashMap<>();
-            paramsForSign.put("app_key", appKey);
-            paramsForSign.put("timestamp", timeStamp);
-            paramsForSign.put("sign_method", "sha256");
-            paramsForSign.put("code", code);
-            paramsForSign.put("simplify", "true");
-
-            String signature = IopUtils.signApiRequest(apiName, paramsForSign, null, appSecret, "sha256");
-            paramsForSign.put("sign", signature);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-
-            StringBuilder key = new StringBuilder();
-            for (Map.Entry<String, String> entry : paramsForSign.entrySet()) {
-                key.append("&").append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), "utf-8"));
-            }
-
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
-            ResponseEntity<TokenResponse> tokenResponse = restTemplate.postForEntity(baseUrl + apiName + "?" + key, request, TokenResponse.class);
-            if (tokenResponse.getBody().getAccessToken() == null) {
-                System.out.println("Error: Answer from API is null in line 80 on AliexpressAuthService.exchangeCodeForToken");
+            IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
+            if (!response.isSuccess()) {
+                System.out.println("Error: Answer from API is null in line 66 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
 
+            String jsonBody = response.getGopResponseBody();
+            TokenResponse tokenResponse = objectMapper.readValue(jsonBody, TokenResponse.class);
+
             Token tokenEntity = new Token(
                     "aliexpress_token",
-                    tokenResponse.getBody().getAccessToken(),
-                    tokenResponse.getBody().getRefreshToken(),
-                    tokenResponse.getBody().getExpiresIn()
+                    tokenResponse.getAccessToken(),
+                    tokenResponse.getRefreshToken(),
+                    tokenResponse.getExpiresIn()
             );
 
             tokenRepository.save(tokenEntity);
             System.out.println("Saved in DB successfully");
 
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Aliexpress API, Line 95 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
+            System.err.println("Http error when calling Aliexpress API, Line 84 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
             System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            System.out.println("Error in line 98 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
+            System.out.println("Error in line 87 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
         }
     }
 
@@ -110,38 +99,19 @@ public class AliexpressAuthService {
         String refreshToken = currentToken.getRefreshToken();
 
         try {
-            long time = System.currentTimeMillis();
-            String timeStamp = Long.toString(time);
+            IopRequest iopRequest = new IopRequest();
+            iopRequest.setApiName(refreshTokenApiName);
+            iopRequest.addApiParameter("refresh_token", refreshToken);
 
-            Map<String, String> paramsForSign = new HashMap<>();
-            paramsForSign.put("app_key", appKey);
-            paramsForSign.put("refresh_token", refreshToken);
-            paramsForSign.put("timestamp", timeStamp);
-            paramsForSign.put("sign_method", "sha256");
-            paramsForSign.put("simplify", "true");
+            IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
 
-            String signature = IopUtils.signApiRequest(refreshTokenApiName, paramsForSign, null, appSecret, "sha256");
-            paramsForSign.put("sign", signature);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-
-            StringBuilder key = new StringBuilder();
-            for (Map.Entry<String, String> entry : paramsForSign.entrySet()) {
-                key.append("&").append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), "utf-8"));
+            if (!response.isSuccess()) {
+                System.out.println("Answer from API is null, access token not renewed. Line 109 ");
             }
 
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+            String jsonBody = response.getGopResponseBody();
+            TokenResponse newTokens = objectMapper.readValue(jsonBody, TokenResponse.class);
 
-            ResponseEntity<TokenResponse> tokenResponse = restTemplate.postForEntity(baseUrl + refreshTokenApiName + "?" + key, request, TokenResponse.class);
-
-            if (tokenResponse.getBody().getAccessToken() == null) {
-                System.out.println("Answer from API is null, access token not renewed. Line 141 ");
-            }
-
-            TokenResponse newTokens = tokenResponse.getBody();
             currentToken.setAccessToken(newTokens.getAccessToken());
             currentToken.setRefreshToken(newTokens.getRefreshToken());
             currentToken.setExpiresIn(newTokens.getExpiresIn());
@@ -149,10 +119,10 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Ali API in line 152 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
+            System.err.println("Http error when calling Ali API in line 122 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
             System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            System.out.println("Error in line 155 on AliexpressAuthService.refreshToken" + e.getMessage());
+            System.out.println("Error in line 125 on AliexpressAuthService.refreshToken" + e.getMessage());
         }
     }
 }

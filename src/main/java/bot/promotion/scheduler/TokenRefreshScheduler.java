@@ -14,8 +14,8 @@ public class TokenRefreshScheduler {
         this.authService = authService;
     }
 
-    @Scheduled(fixedRateString = "PT20H", initialDelayString = "PT5M")
+    /*@Scheduled(fixedRateString = "PT20H", initialDelayString = "PT5M")
     public void scheduleTokenRefresh() {
         authService.refreshToken();
-    }
+    }*/
 }
