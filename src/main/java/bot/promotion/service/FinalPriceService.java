@@ -6,6 +6,7 @@ import bot.promotion.repository.CouponRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -17,33 +18,37 @@ import static java.lang.String.format;
 @Service
 public class FinalPriceService {
     private final CouponRepository couponRepository;
-    
+    private static final BigDecimal IMPORT_DUTY_RATE = new BigDecimal("0.20"); // 20% import duty rate for <= $50 products
+    private static final BigDecimal IMPORT_DUTY_RATE_OVER = new BigDecimal("0.28"); // 28% import duty rate for > $50 products
+    private static final BigDecimal ICMS_RATE = new BigDecimal("0.20"); // 20% ICMS tax rate
+    private final CotacaoService cotacao;
+
     @Autowired
-    public FinalPriceService(CouponRepository couponRepository) {
+    public FinalPriceService(CouponRepository couponRepository, CotacaoService cotacaoService) {
         this.couponRepository = couponRepository;
+        this.cotacao =  cotacaoService;
     }
-    
+
     public String calculateFinalPrice(HotProduct product) {
-        Double valueProduct = Double.parseDouble(product.getSalePriceApp());
-        Optional<Double> valuePromotionCode = Optional.of(Double.parseDouble(product.getPromotionCode().getCodeValue()));
+        BigDecimal afterDiscount = ProductPriceWithCoupon(product);
 
-        List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
-        Optional<Coupon> coupons = couponsAvailable.stream()
-                .filter(coupon -> valueProduct.compareTo(coupon.getMinimumSpend()) >= 0)
-                .max(Comparator.comparing(Coupon::getDiscount));
-
-        double discountedProductValue = valueProduct - valuePromotionCode.orElse(0.0);
-        if (coupons.isPresent()) {
-            discountedProductValue -= coupons.get().getDiscount();
+        if (afterDiscount.compareTo(new BigDecimal(cotacao.getCachedCotacao())) <= 0) {
+            BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
+            BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
+            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+            return format("R$ %.2f", finalPrice);
         }
-        double finalAmount = discountedProductValue * Double.parseDouble(product.getTaxRate());
 
-        return format("%.2f", finalAmount);
+        BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
+        BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
+        BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+
+        return format("R$ %.2f", finalPrice);
     }
-    
+
     public List<Coupon> couponListAvailable(HotProduct product) {
         Double valueProduct = Double.parseDouble(product.getSalePriceApp());
-        
+
         List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
 
         return couponsAvailable.stream()
@@ -51,4 +56,23 @@ public class FinalPriceService {
                 .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
                 .collect(Collectors.toList());
     }
+
+    private BigDecimal ProductPriceWithCoupon(HotProduct product) {
+
+        BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
+        Optional<Double> valuePromotionCode = Optional.of(Double.parseDouble(product.getPromotionCode().getCodeValue()));
+
+        List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
+        Optional<Coupon> coupons = couponsAvailable.stream()
+                .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
+                .max(Comparator.comparing(Coupon::getDiscount));
+
+        BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode.orElse(0.0)));
+        if (coupons.isPresent()) {
+            discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
+        }
+
+        return discountedProductValue;
+    }
+
 }

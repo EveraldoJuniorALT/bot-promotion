@@ -30,7 +30,10 @@ public class TelegramMessageFormatter {
                 message.append(coupon.getCouponCode()).append(" ou");
             }
         }
-        message.append(" + ").append(product.getPromotionCode().getCodePromotion());
+
+        if (!product.getPromotionCode().getCodePromotion().isEmpty()) {
+            message.append(" + ").append(product.getPromotionCode().getCodePromotion());
+        }
         message.append(" + Moedas no APP \n\n");
         message.append("🔗 ").append(affiliateLink).append("\n");
         message.append("\n");

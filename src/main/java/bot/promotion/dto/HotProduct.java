@@ -7,8 +7,9 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HotProduct {
-    @JsonProperty("tax_rate")
-    private String taxRate;
+
+    @JsonProperty("evaluate_rate")
+    private String evaluateRate;
 
     @JsonProperty("product_id")
     private String productId;
@@ -34,5 +35,4 @@ public class HotProduct {
         @JsonProperty("code_value")
         private String codeValue;
     }
-
 }

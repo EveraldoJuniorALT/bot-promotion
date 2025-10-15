@@ -43,7 +43,7 @@ public class AliexpressAuthService {
 
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
             if (!response.isSuccess()) {
-                System.out.println("Error: Answer from API is null in line 66 on AliexpressAuthService.exchangeCodeForToken");
+                System.out.println("Error: Answer from API is null in line 46 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
 
@@ -61,10 +61,10 @@ public class AliexpressAuthService {
             System.out.println("Saved in DB successfully");
 
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Aliexpress API, Line 84 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
+            System.err.println("Http error when calling Aliexpress API, Line 64 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
             System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            System.out.println("Error in line 87 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
+            System.out.println("Error in line 67 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
         }
     }
 
@@ -86,7 +86,7 @@ public class AliexpressAuthService {
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
 
             if (!response.isSuccess()) {
-                System.out.println("Answer from API is null, access token not renewed. Line 109 ");
+                System.out.println("Answer from API is null, access token not renewed. Line 89 ");
             }
 
             String jsonBody = response.getGopResponseBody();
@@ -99,10 +99,10 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Ali API in line 122 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
+            System.err.println("Http error when calling Ali API in line 102 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
             System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            System.out.println("Error in line 125 on AliexpressAuthService.refreshToken" + e.getMessage());
+            System.out.println("Error in line 105 on AliexpressAuthService.refreshToken" + e.getMessage());
         }
     }
 }

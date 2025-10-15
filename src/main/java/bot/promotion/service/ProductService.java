@@ -24,8 +24,8 @@ public class ProductService {
         this.urlService = urlService;
     }
 
+
     public void fetchHotProducts() {
-        List<HotProduct> allProducts = new ArrayList<>();
         int currentPage = 1;
         HotProductResponse responseApi = apiClient.getHotProduct(currentPage);
 
@@ -34,16 +34,17 @@ public class ProductService {
             return;
         }
 
-        allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
-        int totalPages = responseApi.getRespResult().getResult().getTotalPages();
+        List<HotProduct> allProducts = new ArrayList<>(responseApi.getRespResult().getResult().getProductsList());
 
-        for (currentPage = 2; currentPage <= totalPages; currentPage++) {
+        while (true) {
             responseApi = apiClient.getHotProduct(currentPage);
-            if (responseApi.getRespResult().getResult().getProductsList() == null) {
-                System.out.println("No products found on page in line 39" + currentPage);
-                return;
+            if (responseApi.getRespResult().getResult().getProductsList() == null ||
+                    responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
+                System.out.println("No products found on page" + currentPage);
+                break;
             }
             allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
+            currentPage++;
             try {
                 // Simulate processing time
                 Thread.sleep(2000);
@@ -52,6 +53,7 @@ public class ProductService {
                 System.out.println("Thread was interrupted during paging");
             }
         }
+        filterAllProducts(allProducts);
 
         for (HotProduct product : allProducts) {
             try {
@@ -65,6 +67,11 @@ public class ProductService {
                 System.out.println("Thread was interrupted during product processing");
             }
         }
+    }
 
+    private void filterAllProducts(List<HotProduct> products) {
+        products.removeIf(product -> product.getSalePriceApp() == null || product.getSalePriceApp().isBlank());
+        products.removeIf(product -> product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() ||
+                product.getEvaluateRate().compareTo(String.valueOf(95.0)) <= 0);
     }
 }

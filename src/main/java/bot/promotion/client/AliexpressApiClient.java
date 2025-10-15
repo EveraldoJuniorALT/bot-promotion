@@ -46,7 +46,7 @@ public class AliexpressApiClient {
         try {
             AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
-                System.out.println("Error answer from API is null in line 49");
+                System.out.println("Error answer from API is null in line 50");
                 return null;
             }
 
@@ -65,13 +65,13 @@ public class AliexpressApiClient {
     private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
         request.setCategoryIds("7, 44");
-        request.setFields("tax_rate,product_id,product_title,product_main_image_url,target_app_sale_price,promo_code_info");
-        request.setMinSalePrice(20L);
-        request.setMaxSalePrice(2000L);
+        request.setFields("evaluate_rate,product_id,product_title,product_main_image_url,target_app_sale_price,promo_code");
+        //request.setKeywords("Mouse gamer, Controller, Controle, Teclado mecanico, teclado magnetico, headset gamer, fone de ouvido");
+        request.setMinSalePrice(1500L);
+        request.setMaxSalePrice(100000L);
         request.setPageNo(Long.valueOf(pageNo));
         request.setPageSize(50L);
         request.setPlatformProductType("ALL");
-        request.setSort("SALE_PRICE_ASC");
         request.setTargetCurrency("BRL");
         request.setTargetLanguage("PT-BR");
         request.setTrackingId(trackingId);
