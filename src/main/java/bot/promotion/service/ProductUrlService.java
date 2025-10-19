@@ -9,13 +9,13 @@ import java.util.regex.Pattern;
 @Service
 public class ProductUrlService {
     private static final Pattern PRODUCT_URL_PATTERN = Pattern.compile("/(?:item/)?(\\d+)\\.html");
-
-        private final AffiliateService affiliateService;
+    private final AffiliateService affiliateService;
 
     @Autowired
     public ProductUrlService(AffiliateService affiliateService) {
         this.affiliateService = affiliateService;
     }
+
     public String extractProductId(String url) {
         if (url == null) return null;
 

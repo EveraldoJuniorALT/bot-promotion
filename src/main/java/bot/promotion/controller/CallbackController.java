@@ -23,13 +23,4 @@ public class CallbackController {
         authService.exchangeCodeForToken(authorizationCode);
         return "Authentication in progress, check the server log";
     }
-
-
-    /*
-    I'll make request to this endpoint every 2 minutes
-    so that the application doesn't shut down
-     */
-    @GetMapping("/refresh")
-    public void testeGenerateLink() {
-    }
 }

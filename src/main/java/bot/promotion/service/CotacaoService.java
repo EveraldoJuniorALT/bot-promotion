@@ -40,13 +40,13 @@ public class CotacaoService {
             BCBApiResponse response = restTemplate.getForObject(urlFinal, BCBApiResponse.class);
 
             if (response == null || response.getValue() == null) {
-                System.out.println("Response from BCB API is null or empty in line 40");
+                System.out.println("Response from BCB API is null or empty in line 43");
                 return;
             }
             Double novaCotacao = response.getValue().getFirst().getCotacao();
             cachedCotacao.set(novaCotacao);
         } catch (Exception e) {
-            System.out.println("Error fetching cotacao from BCB API in line 45: " + e.getMessage());
+            System.out.println("Error fetching cotacao from BCB API in line 59: " + e.getMessage());
         }
     }
 }

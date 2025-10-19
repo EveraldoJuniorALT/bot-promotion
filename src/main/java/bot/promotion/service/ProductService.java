@@ -26,6 +26,7 @@ public class ProductService {
 
 
     public void fetchHotProducts() {
+        System.out.println("Starting fetchHotProducts process...");
         int currentPage = 1;
         HotProductResponse responseApi = apiClient.getHotProduct(currentPage);
 
@@ -38,9 +39,12 @@ public class ProductService {
 
         while (true) {
             responseApi = apiClient.getHotProduct(currentPage);
-            if (responseApi.getRespResult().getResult().getProductsList() == null ||
+            if (responseApi == null ||
+                    responseApi.getRespResult() == null ||
+                    responseApi.getRespResult().getResult() == null ||
+                    responseApi.getRespResult().getResult().getProductsList() == null ||
                     responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
-                System.out.println("No products found on page" + currentPage);
+                System.out.println("No products found on page " + currentPage);
                 break;
             }
             allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
@@ -54,6 +58,8 @@ public class ProductService {
             }
         }
         filterAllProducts(allProducts);
+
+        System.out.println("Total products after filtering: " + allProducts.size());
 
         for (HotProduct product : allProducts) {
             try {

@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -21,12 +23,13 @@ public class FinalPriceService {
     private static final BigDecimal IMPORT_DUTY_RATE = new BigDecimal("0.20"); // 20% import duty rate for <= $50 products
     private static final BigDecimal IMPORT_DUTY_RATE_OVER = new BigDecimal("0.28"); // 28% import duty rate for > $50 products
     private static final BigDecimal ICMS_RATE = new BigDecimal("0.20"); // 20% ICMS tax rate
+    private static final Pattern VALUE_PROMO_CODE = Pattern.compile("BRL (\\d+\\.\\d+) off");
     private final CotacaoService cotacao;
 
     @Autowired
     public FinalPriceService(CouponRepository couponRepository, CotacaoService cotacaoService) {
         this.couponRepository = couponRepository;
-        this.cotacao =  cotacaoService;
+        this.cotacao = cotacaoService;
     }
 
     public String calculateFinalPrice(HotProduct product) {
@@ -60,18 +63,25 @@ public class FinalPriceService {
     private BigDecimal ProductPriceWithCoupon(HotProduct product) {
 
         BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
-        Optional<Double> valuePromotionCode = Optional.of(Double.parseDouble(product.getPromotionCode().getCodeValue()));
+        Double valuePromotionCode = 0.0;
+        if (product.getPromotionCode() != null && product.getPromotionCode().getCodeValue() != null) {
+            Matcher matcher = VALUE_PROMO_CODE.matcher(product.getPromotionCode().getCodeValue());
+            if (matcher.find()) {
+                String codeValue = matcher.group(1);
+                valuePromotionCode = Double.parseDouble(codeValue);
+            }
+        }
 
         List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .max(Comparator.comparing(Coupon::getDiscount));
 
-        BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode.orElse(0.0)));
-        if (coupons.isPresent()) {
-            discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
-        }
+        BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
 
+        if (coupons.isPresent()) {
+            discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
+        }
         return discountedProductValue;
     }
 
