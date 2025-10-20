@@ -24,7 +24,6 @@ public class ProductService {
         this.urlService = urlService;
     }
 
-
     public void fetchHotProducts() {
         System.out.println("Starting fetchHotProducts process...");
         int currentPage = 1;

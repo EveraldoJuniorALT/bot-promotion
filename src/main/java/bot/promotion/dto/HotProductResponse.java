@@ -22,10 +22,6 @@ public class HotProductResponse {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Result {
-
-        @JsonProperty("total_page_no")
-        private int totalPages;
-
         @JsonProperty("products")
         private List<HotProduct> productsList;
     }

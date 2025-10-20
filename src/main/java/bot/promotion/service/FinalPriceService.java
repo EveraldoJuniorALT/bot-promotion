@@ -35,6 +35,10 @@ public class FinalPriceService {
     public String calculateFinalPrice(HotProduct product) {
         BigDecimal afterDiscount = ProductPriceWithCoupon(product);
 
+        if(product.getOriginalCurrency().equals("BRL")) {
+            return format("R$ %.2f", afterDiscount);
+        }
+
         if (afterDiscount.compareTo(new BigDecimal(cotacao.getCachedCotacao())) <= 0) {
             BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);

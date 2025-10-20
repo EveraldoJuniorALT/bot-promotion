@@ -18,4 +18,5 @@ public class ProductSearchScheduler {
     public void scheduleProductSearch() {
         productService.fetchHotProducts();
     }
+
 }

@@ -8,7 +8,7 @@ import java.util.List;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AliexpressLinkResponse {
+public class AffiliateLinkResponse {
 
     @JsonProperty("resp_result")
     private MainResponse respResult;
