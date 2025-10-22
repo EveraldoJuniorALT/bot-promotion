@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,7 +45,9 @@ public class CotacaoService {
                 return;
             }
             Double novaCotacao = response.getValue().getFirst().getCotacao();
-            cachedCotacao.set(novaCotacao);
+            BigDecimal cotacaoDecimal = BigDecimal.valueOf(novaCotacao);
+            BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, BigDecimal.ROUND_HALF_UP);
+            cachedCotacao.set(cotacaoRounded.doubleValue());
         } catch (Exception e) {
             System.out.println("Error fetching cotacao from BCB API in line 59: " + e.getMessage());
         }

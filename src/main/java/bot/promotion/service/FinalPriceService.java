@@ -39,7 +39,11 @@ public class FinalPriceService {
             return format("R$ %.2f", afterDiscount);
         }
 
-        if (afterDiscount.compareTo(new BigDecimal(cotacao.getCachedCotacao())) <= 0) {
+        BigDecimal limiteUSD = new BigDecimal("50.00");
+        BigDecimal cotacaoAtual = new BigDecimal(cotacao.getCachedCotacao());
+        BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
+
+        if (afterDiscount.compareTo(limiteBRL) <= 0) {
             BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
             BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
@@ -67,7 +71,7 @@ public class FinalPriceService {
     private BigDecimal ProductPriceWithCoupon(HotProduct product) {
 
         BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
-        Double valuePromotionCode = 0.0;
+        double valuePromotionCode = 0.0;
         if (product.getPromotionCode() != null && product.getPromotionCode().getCodeValue() != null) {
             Matcher matcher = VALUE_PROMO_CODE.matcher(product.getPromotionCode().getCodeValue());
             if (matcher.find()) {
@@ -88,5 +92,4 @@ public class FinalPriceService {
         }
         return discountedProductValue;
     }
-
 }
