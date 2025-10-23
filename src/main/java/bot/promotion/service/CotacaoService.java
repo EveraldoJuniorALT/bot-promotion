@@ -41,7 +41,7 @@ public class CotacaoService {
             BCBApiResponse response = restTemplate.getForObject(urlFinal, BCBApiResponse.class);
 
             if (response == null || response.getValue() == null) {
-                System.out.println("Response from BCB API is null or empty in line 43");
+                System.out.println("Response from BCB API is null or empty in line 44");
                 return;
             }
             Double novaCotacao = response.getValue().getFirst().getCotacao();
@@ -49,7 +49,7 @@ public class CotacaoService {
             BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, BigDecimal.ROUND_HALF_UP);
             cachedCotacao.set(cotacaoRounded.doubleValue());
         } catch (Exception e) {
-            System.out.println("Error fetching cotacao from BCB API in line 59: " + e.getMessage());
+            System.out.println("Error fetching cotacao from BCB API in line 52: " + e.getMessage());
         }
     }
 }
