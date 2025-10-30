@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -29,6 +30,7 @@ public class TelegramService extends TelegramLongPollingBot {
 
     public void sendPhotoMessage(String photoUrl, String caption) {
         SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setParseMode(ParseMode.HTML);
         sendPhoto.setChatId(chatId);
         sendPhoto.setPhoto(new InputFile(photoUrl));
         sendPhoto.setCaption(caption);
