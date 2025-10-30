@@ -23,6 +23,6 @@ public class SkuProductResponse {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Result {
         @JsonProperty("ae_item_sku_info")
-        private List<SkuProduct> skuProducts;
+        private List<SkuProduct> skuProductsList;
     }
 }

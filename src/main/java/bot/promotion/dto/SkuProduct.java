@@ -10,11 +10,14 @@ public class SkuProduct {
     @JsonProperty("shipping_fees")
     private String shippingFees;
 
+    @JsonProperty("color")
+    private String modelo;
+
     @JsonProperty("sale_price_with_tax")
     private String salePrice;
 
-    @JsonProperty("sku_properties")
-    private String infoModel;
+    @JsonProperty("sku_image_link")
+    private String skuImage;
 
     @JsonProperty("ship_from_country")
     private String shipFromCountry;

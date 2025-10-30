@@ -1,6 +1,7 @@
 package bot.promotion.service;
 
 import bot.promotion.dto.HotProduct;
+import bot.promotion.dto.SkuProduct;
 import bot.promotion.model.Coupon;
 import bot.promotion.repository.CouponRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,10 +33,10 @@ public class FinalPriceService {
         this.cotacao = cotacaoService;
     }
 
-    public String calculateFinalPrice(HotProduct product) {
-        BigDecimal afterDiscount = ProductPriceWithCoupon(product);
+    public String calculateFinalPrice(HotProduct product, SkuProduct skuProduct) {
+        BigDecimal afterDiscount = ProductPriceWithCoupon(product, skuProduct);
 
-        if(product.getOriginalCurrency().equals("BRL")) {
+        if(skuProduct.getShipFromCountry().equals("BR")) {
             return format("R$ %.2f", afterDiscount);
         }
 
@@ -60,7 +61,7 @@ public class FinalPriceService {
     public List<Coupon> couponListAvailable(HotProduct product) {
         Double valueProduct = Double.parseDouble(product.getSalePriceApp());
 
-        List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
+        Optional<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
 
         return couponsAvailable.stream()
                 .filter(coupon -> valueProduct.compareTo(coupon.getMinimumSpend()) >= 0)
@@ -68,9 +69,9 @@ public class FinalPriceService {
                 .collect(Collectors.toList());
     }
 
-    private BigDecimal ProductPriceWithCoupon(HotProduct product) {
+    private BigDecimal ProductPriceWithCoupon(HotProduct product, SkuProduct skuProduct) {
 
-        BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
+        BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
         double valuePromotionCode = 0.0;
         if (product.getPromotionCode() != null && product.getPromotionCode().getCodeValue() != null) {
             Matcher matcher = VALUE_PROMO_CODE.matcher(product.getPromotionCode().getCodeValue());
@@ -80,7 +81,7 @@ public class FinalPriceService {
             }
         }
 
-        List<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
+        Optional<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .max(Comparator.comparing(Coupon::getDiscount));
@@ -89,6 +90,11 @@ public class FinalPriceService {
 
         if (coupons.isPresent()) {
             discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
+        }
+
+        if (skuProduct.getShippingFees() != null && !skuProduct.getShippingFees().isBlank()) {
+            BigDecimal shippingFees = new BigDecimal(skuProduct.getShippingFees());
+            discountedProductValue = discountedProductValue.add(shippingFees);
         }
         return discountedProductValue;
     }
