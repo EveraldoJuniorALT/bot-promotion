@@ -1,31 +1,41 @@
 package bot.promotion.service;
 
 import bot.promotion.client.AliexpressApiClient;
-import bot.promotion.dto.HotProduct;
-import bot.promotion.dto.HotProductResponse;
+import bot.promotion.client.SkuProductInfo;
+import bot.promotion.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
-    AliexpressApiClient apiClient;
-    TelegramService telegramService;
-    TelegramMessageFormatter formatter;
-    ProductUrlService urlService;
+    private final AliexpressApiClient apiClient;
+    private final TelegramService telegramService;
+    private final TelegramMessageFormatter formatter;
+    private final ProductUrlService urlService;
+    private final SkuProductInfo skuProductInfo;
+    private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
+    private static final Set<String> COMMON_COLORS = Set.of(
+            "black", "white", "red", "blue", "green", "yellow", "purple", "pink",
+            "orange", "brown", "gray", "grey", "silver", "gold", "beige", "navy",
+            "preto", "branco", "vermelho", "azul", "verde", "amarelo", "roxo", "rosa",
+            "laranja", "marrom", "cinza", "prata", "dourado", "bege"
+    );
 
     @Autowired
-    public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter, ProductUrlService urlService) {
+    public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter, ProductUrlService urlService, SkuProductInfo skuProductInfo) {
         this.apiClient = apiClient;
         this.telegramService = telegramService;
         this.formatter = formatter;
         this.urlService = urlService;
+        this.skuProductInfo = skuProductInfo;
     }
 
     public void fetchHotProducts() {
-        System.out.println("Starting fetchHotProducts process...");
         int currentPage = 1;
         HotProductResponse responseApi = apiClient.getHotProduct(currentPage);
 
@@ -50,33 +60,131 @@ public class ProductService {
             currentPage++;
             try {
                 // Simulate processing time
-                Thread.sleep(2000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("Thread was interrupted during paging");
             }
         }
         filterAllProducts(allProducts);
-
         System.out.println("Total products after filtering: " + allProducts.size());
+        fetchSkuInfo(allProducts);
 
+    }
+
+    private void fetchSkuInfo(List<HotProduct> allProducts) {
         for (HotProduct product : allProducts) {
-            try {
-                telegramService.sendPhotoMessage(product.getImageUrl(),
-                        formatter.formatMessage(product,
-                                urlService.coinUrl(product.getProductId())));
-                // Simulate processing time
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Thread was interrupted during product processing");
+            SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId());
+            if (skuInfo == null ||
+                    skuInfo.getRespResult() == null ||
+                    skuInfo.getRespResult().getResult() == null ||
+                    skuInfo.getRespResult().getResult().getSkuProductsList() == null) {
+                continue;
+            }
+            List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
+            skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
+
+            System.out.println("SKU: " + skuAllProducts);
+
+            chooseBestProduct(product, skuAllProducts);
+        }
+    }
+
+    private void chooseBestProduct(HotProduct product, List<SkuProduct> skuAllProducts) {
+        if (skuAllProducts.size() == 1) {
+            publishProduct(product, skuAllProducts.getFirst());
+            return;
+        }
+
+        System.out.println("Before grouping SKUs");
+        Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
+                .collect(Collectors.groupingBy(
+                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
+                        Collectors.minBy(Comparator.comparing(SkuProduct::getSalePrice))
+                ));
+
+        List<SkuProduct> cheapestByGroup = groupedByCheapest.values().stream()
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+
+        if (cheapestByGroup.size() == 1) {
+            publishProduct(product, cheapestByGroup.getFirst());
+            return;
+        }
+
+        String firstPrice = cheapestByGroup.getFirst().getSalePrice();
+        boolean allSamePrice = cheapestByGroup.stream().allMatch(SkuProduct -> Objects.equals(SkuProduct.getSalePrice(), firstPrice));
+
+        if (allSamePrice) {
+            publishProduct(product, cheapestByGroup.getFirst());
+            return;
+        }
+
+        for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
+            if (sku.isPresent()) {
+                SkuProduct skuProduct = sku.get();
+                System.out.println("Selected SKU: " + skuProduct);
+                publishProduct(product, skuProduct);
             }
         }
     }
 
+    private String simplifiedGroupkey(String title) {
+        Matcher matcher = FIRST_WORD_PATTERN.matcher(title);
+        if (!matcher.find()) {
+            return title;
+        }
+        String titleFormated = matcher.group(1).toLowerCase();
+
+        if (COMMON_COLORS.contains(titleFormated)) {
+            return "color";
+        }
+        return titleFormated;
+    }
+
+    private void publishProduct(HotProduct product, SkuProduct skuProduct) {
+        try {
+            telegramService.sendPhotoMessage(skuProduct.getSkuImage(),
+                    formatter.formatMessage(product, skuProduct,
+                            urlService.coinUrl(product.getProductId())));
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread was interrupted during product processing");
+        }
+
+    }
+
     private void filterAllProducts(List<HotProduct> products) {
-        products.removeIf(product -> product.getSalePriceApp() == null || product.getSalePriceApp().isBlank());
-        products.removeIf(product -> product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() ||
-                product.getEvaluateRate().compareTo(String.valueOf(95.0)) <= 0);
+        List<String> palavrasChave = List.of(
+                "mouse", "teclado", "webcam", "controle", "gamepad", "mousepad",
+                "headset", "fone", "caixa de som", "microfone", "monitor", "notebook",
+                "laptop", "ssd", "ram", "fans", "fan", "ventilador", "gabinete",
+                "carregador", "cabo", "console", "placa mãe", "cpu", "keyboard",
+                "controller", "earphone", "headphone", "speaker", "speakers",
+                "microphone", "cooler", "case", "pc case", "tower", "charger", "cable",
+                "motherboard"
+        );
+
+        Set<String> seenProductIds = new HashSet<>();
+
+        products.removeIf(product -> {
+            if (product.getSalePriceApp() == null || product.getSalePriceApp().isBlank()) {
+                return true;
+            }
+
+            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate().replace("%", "")) <= 0) {
+                return true;
+            }
+
+            if (!seenProductIds.add(product.getProductId())) {
+                return true;
+            }
+
+            String titleLower = product.getProductTitle().toLowerCase();
+            // .noneMatch return true if no match is found
+            return palavrasChave.stream().noneMatch(titleLower::contains);
+        });
     }
 }
