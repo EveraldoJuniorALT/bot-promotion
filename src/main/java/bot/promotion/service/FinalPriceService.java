@@ -58,13 +58,13 @@ public class FinalPriceService {
         return format("R$ %.2f", finalPrice);
     }
 
-    public List<Coupon> couponListAvailable(HotProduct product) {
-        Double valueProduct = Double.parseDouble(product.getSalePriceApp());
+    public List<Coupon> couponListAvailable(SkuProduct skuProduct) {
+        BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
 
-        Optional<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
+        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(valueProduct);
 
         return couponsAvailable.stream()
-                .filter(coupon -> valueProduct.compareTo(coupon.getMinimumSpend()) >= 0)
+                .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
                 .collect(Collectors.toList());
     }
@@ -81,7 +81,7 @@ public class FinalPriceService {
             }
         }
 
-        Optional<Coupon> couponsAvailable = couponRepository.findByEndTimeAfter(LocalDateTime.now());
+        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(valueProduct);
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .max(Comparator.comparing(Coupon::getDiscount));

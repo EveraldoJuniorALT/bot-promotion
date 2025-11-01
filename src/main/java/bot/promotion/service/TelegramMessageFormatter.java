@@ -25,7 +25,7 @@ public class TelegramMessageFormatter {
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
         message.append("💰 Valor: ").append(finalPriceService.calculateFinalPrice(product, skuProduct)).append("\n\n");
 
-        List<Coupon> coupons = finalPriceService.couponListAvailable(product);
+        List<Coupon> coupons = finalPriceService.couponListAvailable(skuProduct);
         boolean hasPromoCode = product.getPromotionCode() != null && product.getPromotionCode().getCodePromotion() != null && !product.getPromotionCode().getCodePromotion().isBlank();
 
         if (!coupons.isEmpty() || hasPromoCode) {
