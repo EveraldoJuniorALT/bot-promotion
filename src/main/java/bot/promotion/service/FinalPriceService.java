@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -59,12 +58,12 @@ public class FinalPriceService {
     }
 
     public List<Coupon> couponListAvailable(SkuProduct skuProduct) {
-        BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
+        Double valueProduct = Double.parseDouble(skuProduct.getSalePrice());
 
         Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(valueProduct);
 
         return couponsAvailable.stream()
-                .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
+                .filter(coupon -> valueProduct.compareTo((coupon.getMinimumSpend())) >= 0)
                 .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
                 .collect(Collectors.toList());
     }
@@ -81,7 +80,7 @@ public class FinalPriceService {
             }
         }
 
-        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(valueProduct);
+        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(Double.parseDouble(skuProduct.getSalePrice()));
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .max(Comparator.comparing(Coupon::getDiscount));
