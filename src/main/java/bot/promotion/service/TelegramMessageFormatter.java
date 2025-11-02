@@ -32,11 +32,11 @@ public class TelegramMessageFormatter {
             message.append("🎟️ Cupom: ");
             List<String> codes = new ArrayList<>();
             if (hasPromoCode) {
-                codes.add("<code>" + product.getPromotionCode().getCodePromotion().trim() + "<code>");
+                codes.add("<code>" + product.getPromotionCode().getCodePromotion().trim() + "</code>");
             }
             if (!coupons.isEmpty()) {
                 codes.addAll(coupons.stream()
-                        .map(c -> "<code>" + c.getCouponCode().trim() + "<code>")
+                        .map(c -> "<code>" + c.getCouponCode().trim() + "</code>")
                         .toList());
             }
             message.append(String.join(" + ", codes));

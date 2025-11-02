@@ -18,6 +18,8 @@ public class ProductService {
     private final TelegramMessageFormatter formatter;
     private final ProductUrlService urlService;
     private final SkuProductInfo skuProductInfo;
+    private final ProductCacheFilter productCacheFilter;
+
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
             "black", "white", "red", "blue", "green", "yellow", "purple", "pink",
@@ -27,12 +29,14 @@ public class ProductService {
     );
 
     @Autowired
-    public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter, ProductUrlService urlService, SkuProductInfo skuProductInfo) {
+    public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter,
+                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter) {
         this.apiClient = apiClient;
         this.telegramService = telegramService;
         this.formatter = formatter;
         this.urlService = urlService;
         this.skuProductInfo = skuProductInfo;
+        this.productCacheFilter = productCacheFilter;
     }
 
     public void fetchHotProducts() {
@@ -68,8 +72,12 @@ public class ProductService {
         }
         filterAllProducts(allProducts);
         System.out.println("Total products after filtering: " + allProducts.size());
-        fetchSkuInfo(allProducts);
 
+        List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(allProducts);
+
+        if (!processedProducts.isEmpty()) {
+            fetchSkuInfo(allProducts);
+        }
     }
 
     private void fetchSkuInfo(List<HotProduct> allProducts) {
@@ -84,19 +92,20 @@ public class ProductService {
             List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
             skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
 
-            System.out.println("SKU: " + skuAllProducts);
-
             chooseBestProduct(product, skuAllProducts);
         }
     }
 
     private void chooseBestProduct(HotProduct product, List<SkuProduct> skuAllProducts) {
+        if (skuAllProducts.isEmpty()) {
+            return;
+        }
+
         if (skuAllProducts.size() == 1) {
             publishProduct(product, skuAllProducts.getFirst());
             return;
         }
 
-        System.out.println("Before grouping SKUs");
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
                         SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
@@ -124,7 +133,6 @@ public class ProductService {
         for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
             if (sku.isPresent()) {
                 SkuProduct skuProduct = sku.get();
-                System.out.println("Selected SKU: " + skuProduct);
                 publishProduct(product, skuProduct);
             }
         }
