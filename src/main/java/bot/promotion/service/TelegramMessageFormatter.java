@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Component
@@ -30,14 +31,17 @@ public class TelegramMessageFormatter {
 
         if (!coupons.isEmpty() || hasPromoCode) {
             message.append("🎟️ Cupom: ");
+
             List<String> codes = new ArrayList<>();
+            if (!coupons.isEmpty()) {
+                String aliexpressCoupons = coupons.stream()
+                        .map(c -> "<code>" + c.getCouponCode().trim() + "</code>")
+                        .limit(2)
+                        .collect(Collectors.joining(" ou "));
+                codes.add(aliexpressCoupons);
+            }
             if (hasPromoCode) {
                 codes.add("<code>" + product.getPromotionCode().getCodePromotion().trim() + "</code>");
-            }
-            if (!coupons.isEmpty()) {
-                codes.addAll(coupons.stream()
-                        .map(c -> "<code>" + c.getCouponCode().trim() + "</code>")
-                        .toList());
             }
             message.append(String.join(" + ", codes));
         }
