@@ -60,10 +60,13 @@ public class FinalPriceService {
     public List<Coupon> couponListAvailable(SkuProduct skuProduct) {
         Double valueProduct = Double.parseDouble(skuProduct.getSalePrice());
 
-        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(valueProduct);
+        List<Coupon> couponsAvailable = couponRepository.findAllByMinimumSpendLessThanEqual(valueProduct);
+
+        if (couponsAvailable.isEmpty()) {
+            return List.of();
+        }
 
         return couponsAvailable.stream()
-                .filter(coupon -> valueProduct.compareTo((coupon.getMinimumSpend())) >= 0)
                 .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
                 .collect(Collectors.toList());
     }
@@ -80,9 +83,8 @@ public class FinalPriceService {
             }
         }
 
-        Optional<Coupon> couponsAvailable = couponRepository.findByMinimumSpendEquals(Double.parseDouble(skuProduct.getSalePrice()));
+        List<Coupon> couponsAvailable = couponListAvailable(skuProduct);
         Optional<Coupon> coupons = couponsAvailable.stream()
-                .filter(coupon -> valueProduct.compareTo(BigDecimal.valueOf(coupon.getMinimumSpend())) >= 0)
                 .max(Comparator.comparing(Coupon::getDiscount));
 
         BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
