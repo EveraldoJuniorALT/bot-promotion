@@ -41,7 +41,6 @@ public class ProductCacheFilter {
         }
 
         List<HotProduct> productsToProcess = new ArrayList<>();
-
         for (HotProduct newProduct : newList) {
             HotProduct oldProduct = oldListProducts.get(newProduct.getProductId());
             if (oldProduct == null) {

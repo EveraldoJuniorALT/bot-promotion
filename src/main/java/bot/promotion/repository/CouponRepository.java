@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface CouponRepository extends JpaRepository<Coupon, String> {
-    List<Coupon> findAllByMinimumSpendLessThanEqual(Double minimumSpend);
+    List<Coupon> findAllByMinimumSpendLessThanEqual(Double productValue);
 }

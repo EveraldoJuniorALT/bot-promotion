@@ -123,7 +123,7 @@ public class ProductService {
         }
 
         String firstPrice = cheapestByGroup.getFirst().getSalePrice();
-        boolean allSamePrice = cheapestByGroup.stream().allMatch(SkuProduct -> Objects.equals(SkuProduct.getSalePrice(), firstPrice));
+        boolean allSamePrice = cheapestByGroup.stream().allMatch(SkuProduct -> Objects.equals(firstPrice, SkuProduct.getSalePrice()));
 
         if (allSamePrice) {
             publishProduct(product, cheapestByGroup.getFirst());

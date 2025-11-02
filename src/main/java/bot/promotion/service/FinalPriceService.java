@@ -35,7 +35,7 @@ public class FinalPriceService {
     public String calculateFinalPrice(HotProduct product, SkuProduct skuProduct) {
         BigDecimal afterDiscount = ProductPriceWithCoupon(product, skuProduct);
 
-        if(skuProduct.getShipFromCountry().equals("BR")) {
+        if (skuProduct.getShipFromCountry().equals("BR")) {
             return format("R$ %.2f", afterDiscount);
         }
 
