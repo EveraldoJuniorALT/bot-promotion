@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Component
@@ -22,6 +23,9 @@ public class AliexpressApiClient {
     private final IopClient iopClient;
     private final TokenRepository tokenRepository;
     private final ObjectMapper objectMapper;
+    private String cachedAccessToken;
+    private LocalDateTime tokenFetchTime;
+    private static final long CACHE_DURATION_MINUTES = 18;
 
     @Autowired
     public AliexpressApiClient(IopClient iopClient, TokenRepository tokenRepository, ObjectMapper objectMapper) {
@@ -31,16 +35,12 @@ public class AliexpressApiClient {
     }
 
     public HotProductResponse getHotProduct(int pageNo) {
-        Optional<Token> tokenDB = tokenRepository.findById("aliexpress_token");
-        if (tokenDB.isEmpty()) {
-            System.out.println("Response from DB about token not found");
-            return null;
-        }
-        String accessToken = tokenDB.get().getAccessToken();
+        String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            System.out.println("Access token is null in line 41");
+            System.out.println("Access token is null in line 42");
             return null;
         }
+
         AliexpressAffiliateHotproductQueryRequest request = getHotproductQueryRequest(pageNo);
 
         try {
@@ -62,13 +62,38 @@ public class AliexpressApiClient {
         }
     }
 
+    private synchronized String getValidAccessToken() {
+        LocalDateTime now = LocalDateTime.now();
+        if (cachedAccessToken == null || tokenFetchTime == null || tokenFetchTime.isBefore(now.minusMinutes(CACHE_DURATION_MINUTES))) {
+            try {
+                Optional<Token> tokenDB = tokenRepository.findById("aliexpress_token");
+                if (tokenDB.isEmpty()) {
+                    System.out.println("Token not found in DB");
+                    return null;
+                }
+
+                if (tokenDB.get().getAccessToken() == null) {
+                    System.out.println("Access token is null in line 80");
+                    return null;
+                }
+
+                this.cachedAccessToken = tokenDB.get().getAccessToken();
+                this.tokenFetchTime = now;
+            } catch (Exception e) {
+                System.out.println("Error fetching access token: " + e.getMessage());
+                return this.cachedAccessToken;
+            }
+        }
+        return this.cachedAccessToken;
+    }
+
     private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
-        request.setCategoryIds("7, 44");
-        request.setFields("evaluate_rate,product_id,product_title,product_main_image_url,target_app_sale_price,promo_code");
-        //request.setKeywords("Mouse gamer, Controller, Controle, Teclado mecanico, teclado magnetico, headset gamer, fone de ouvido");
+        request.setCategoryIds("200001074");
+        request.setFields("sku_id,evaluate_rate,product_id,product_title,target_app_sale_price,promo_code_info");
+        request.setKeywords("PC peripherals,gaming accessories,mouse,keyboard,webcam,headset,controller,gadgets");
         request.setMinSalePrice(1500L);
-        request.setMaxSalePrice(100000L);
+        request.setMaxSalePrice(200000L);
         request.setPageNo(Long.valueOf(pageNo));
         request.setPageSize(50L);
         request.setPlatformProductType("ALL");
