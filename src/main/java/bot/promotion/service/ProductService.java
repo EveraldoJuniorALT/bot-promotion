@@ -82,7 +82,7 @@ public class ProductService {
 
     private void fetchSkuInfo(List<HotProduct> allProducts) {
         for (HotProduct product : allProducts) {
-            SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId());
+            SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId(), product.getSkuId());
             if (skuInfo == null ||
                     skuInfo.getRespResult() == null ||
                     skuInfo.getRespResult().getResult() == null ||
@@ -159,7 +159,7 @@ public class ProductService {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during product processing");
+            System.out.println("Thread was interrupted during publishing product");
         }
 
     }
