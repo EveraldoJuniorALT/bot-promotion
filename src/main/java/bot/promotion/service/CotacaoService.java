@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,7 +32,7 @@ public class CotacaoService {
         updateCotacao();
     }
 
-    @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "America/Sao_Paulo")
+    @Scheduled(cron = "0 0 11 * * MON-FRI", zone = "America/Sao_Paulo")
     public void updateCotacao() {
         try {
             String dataFormat = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd-yyyy"));
@@ -46,7 +47,7 @@ public class CotacaoService {
             }
             Double novaCotacao = response.getValue().getFirst().getCotacao();
             BigDecimal cotacaoDecimal = BigDecimal.valueOf(novaCotacao);
-            BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, BigDecimal.ROUND_HALF_UP);
+            BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, RoundingMode.HALF_UP);
             cachedCotacao.set(cotacaoRounded.doubleValue());
         } catch (Exception e) {
             System.out.println("Error fetching cotacao from BCB API in line 52: " + e.getMessage());
