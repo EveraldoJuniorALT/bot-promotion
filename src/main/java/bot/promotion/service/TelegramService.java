@@ -1,6 +1,7 @@
 package bot.promotion.service;
 
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -10,6 +11,9 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Component
 public class TelegramService extends TelegramLongPollingBot {
     @Getter
@@ -18,6 +22,17 @@ public class TelegramService extends TelegramLongPollingBot {
     @Value("${telegram.bot.chat-id}")
     private String chatId;
 
+    private final ProductUrlService productUrlService;
+    private final ProductTelegramService productTelegramService;
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
+
+    @Autowired
+    public TelegramService(ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
+        this.productUrlService = productUrlService;
+        this.productTelegramService = productTelegramService;
+    }
+
     @Override
     public String getBotUsername() {
         return "TesteBotPromotion";
@@ -25,7 +40,29 @@ public class TelegramService extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        // No implementation needed for sending messages only
+        if (update.hasMessage() && update.getMessage().hasText()) {
+
+            String messageText = update.getMessage().getText();
+            String url = findUrlInText(messageText);
+
+            if (url != null && (url.contains("s.click.aliexpress.com"))) {
+                String productId = productUrlService.processUrlAndExtractId(url);
+                productTelegramService.sendProductInfo(productId);
+            }
+
+            if (url != null && (url.contains("pt.aliexpress.com"))) {
+                String productId = productUrlService.extractProductId(url);
+                productTelegramService.sendProductInfo(productId);
+            }
+        }
+    }
+
+    private String findUrlInText(String text) {
+        Matcher matcher = URL_PATTERN.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 
     public void sendPhotoMessage(String photoUrl, String caption) {

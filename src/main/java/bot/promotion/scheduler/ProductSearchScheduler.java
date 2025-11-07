@@ -14,7 +14,7 @@ public class ProductSearchScheduler {
         this.productService = productService;
     }
 
-    @Scheduled(fixedRateString = "PT20M", initialDelayString = "PT10S")
+    @Scheduled(fixedRateString = "PT20M", initialDelayString = "PT40S")
     public void scheduleProductSearch() {
         productService.fetchHotProducts();
     }
