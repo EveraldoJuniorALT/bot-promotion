@@ -34,15 +34,32 @@ public class SkuProductInfo {
         try {
             IopResponse response = iopClient.execute(request, Protocol.TOP);
             if (!response.isSuccess()) {
-                return null;
+                try {
+                    Thread.sleep(2000);
+                    response = iopClient.execute(request, Protocol.TOP);
+                    if (!response.isSuccess()) {
+                        System.out.println("Error answer from API is null in line 41");
+                        return null;
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Thread was interrupted during getSkuProduct retry");
+                    return null;
+                } catch (ApiException e) {
+                    System.out.println("Error get SKU product in line 49 on getSkuProduct on second try: " + e.getMessage());
+                    return null;
+                } catch (Exception e) {
+                    System.out.println("Unexpected error in line 52 on getSkuProduct on second try: " + e.getMessage());
+                    return null;
+                }
             }
             String jsonBody = response.getGopResponseBody();
             return objectMapper.readValue(jsonBody, SkuProductResponse.class);
         } catch (ApiException e) {
-            System.out.println("Error get SKU product in line 42 on getSkuProduct: " + e.getMessage());
+            System.out.println("Error get SKU product in line 59 on getSkuProduct: " + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.out.println("Unexpected error in line 45 on getSkuProduct: " + e.getMessage());
+            System.out.println("Unexpected error in line 62 on getSkuProduct: " + e.getMessage());
             return null;
         }
     }
