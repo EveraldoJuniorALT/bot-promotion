@@ -37,7 +37,7 @@ public class AffiliateService {
     public String generateAffiliateLink(String productURL) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            System.out.println("Access token is null in line 42");
+            System.out.println("Access token is null in line 40");
             return null;
         }
 
@@ -49,8 +49,23 @@ public class AffiliateService {
         try {
             AliexpressAffiliateLinkGenerateResponse linkResponse = iopClient.execute(request, accessToken);
             if (!linkResponse.isSuccess()) {
-                System.out.println("Error answer from API is null in line 52");
-                return null;
+                try {
+                    Thread.sleep(2000);
+                    linkResponse = iopClient.execute(request, accessToken);
+                    if (!linkResponse.isSuccess()) {
+                        System.out.println("Error answer from API is null in line 56 on second attempt");
+                        return null;
+                    }
+                } catch (InterruptedException e) {
+                    System.out.println("Thread was interrupted during generate affiliate link in line 60 on second attempt: " + e.getMessage());
+                    return null;
+                } catch (ApiException e) {
+                    System.out.println("Error generate affiliate link in line 63 on generateAffiliateLink on second attempt: " + e.getMessage());
+                    return null;
+                } catch (Exception e) {
+                    System.out.println("Unexpected error in line 66 on generateAffiliateLink on second attempt: " + e.getMessage());
+                    return null;
+                }
             }
 
             String jsonBody = linkResponse.getGopResponseBody();
@@ -62,10 +77,10 @@ public class AffiliateService {
                     .getFirst()
                     .getPromotionLink();
         } catch (ApiException e) {
-            System.out.println("Error generate affiliate link in line 65 on generateAffiliateLink" + e.getMessage());
+            System.out.println("Error generate affiliate link in line 80 on generateAffiliateLink" + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.out.println("Error generate link in line 68 on  generateAffiliateLink" + e.getMessage());
+            System.out.println("Error generate link in line 83 on  generateAffiliateLink" + e.getMessage());
             return null;
         }
     }
@@ -81,7 +96,7 @@ public class AffiliateService {
                 }
 
                 if (tokenDB.get().getAccessToken() == null) {
-                    System.out.println("Access token is null in line 90");
+                    System.out.println("Access token is null in line 99");
                     return null;
                 }
 
