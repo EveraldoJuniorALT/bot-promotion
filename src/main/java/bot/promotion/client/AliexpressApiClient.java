@@ -46,7 +46,7 @@ public class AliexpressApiClient {
         try {
             AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
-                System.out.println("Error answer from API is null in line 50");
+                System.out.println("Error answer from API is null in line 49");
                 return null;
             }
 
@@ -89,16 +89,14 @@ public class AliexpressApiClient {
 
     private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
-        request.setCategoryIds("200001074");
-        request.setFields("sku_id,evaluate_rate,product_id,product_title,target_app_sale_price,promo_code_info");
-        request.setKeywords("PC peripherals,gaming accessories,mouse,keyboard,webcam,headset,controller,gadgets");
+        request.setCategoryIds("7,44");
         request.setMinSalePrice(1500L);
         request.setMaxSalePrice(200000L);
-        request.setPageNo(Long.valueOf(pageNo));
+        request.setPageNo((long) pageNo);
         request.setPageSize(50L);
         request.setPlatformProductType("ALL");
         request.setTargetCurrency("BRL");
-        request.setTargetLanguage("PT-BR");
+        request.setTargetLanguage("PT");
         request.setTrackingId(trackingId);
         request.setShipToCountry("BR");
         return request;

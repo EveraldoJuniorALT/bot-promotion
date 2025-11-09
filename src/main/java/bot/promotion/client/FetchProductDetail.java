@@ -37,7 +37,7 @@ public class FetchProductDetail {
     public HotProductResponse productDetail(String productId) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            System.out.println("Access token is null in line 30");
+            System.out.println("Access token is null in line 40");
             return null;
         }
 
@@ -47,18 +47,33 @@ public class FetchProductDetail {
             AliexpressAffiliateProductdetailGetResponse responseApi = iopClient.execute(request, accessToken);
 
             if (!responseApi.isSuccess()) {
-                System.out.println("Error answer from API is null in line 52");
-                return null;
+                try {
+                    Thread.sleep(2000);
+                    responseApi = iopClient.execute(request, accessToken);
+                    if (!responseApi.isSuccess()) {
+                        System.out.println("Error answer from API is null in line 50 on second attempt");
+                        return null;
+                    }
+                } catch (InterruptedException e) {
+                    System.out.println("Thread was interrupted during fetch product detail in line 58 on second attempt: " + e.getMessage());
+                    return null;
+                } catch (ApiException e) {
+                    System.out.println("Error get hot products in line 61 on getHotProduct on second attempt" + e.getMessage());
+                    return null;
+                } catch (Exception e) {
+                    System.out.println("Error get hot products in line 64 on getHotProduct on second attempt" + e.getMessage());
+                    return null;
+                }
             }
 
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, HotProductResponse.class);
 
         } catch (ApiException e) {
-            System.out.println("Error get hot products in line 60 on getHotProduct" + e.getMessage());
+            System.out.println("Error get hot products in line 73 on getHotProduct" + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.out.println("Error get hot products in line 63 on  getHotProduct" + e.getMessage());
+            System.out.println("Error get hot products in line 76 on getHotProduct" + e.getMessage());
             return null;
         }
     }
@@ -74,7 +89,7 @@ public class FetchProductDetail {
                 }
 
                 if (tokenDB.get().getAccessToken() == null) {
-                    System.out.println("Access token is null in line 43");
+                    System.out.println("Access token is null in line 92");
                     return null;
                 }
 
