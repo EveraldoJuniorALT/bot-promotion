@@ -51,25 +51,26 @@ public class ProductService {
         List<HotProduct> allProducts = new ArrayList<>(responseApi.getRespResult().getResult().getProductsList());
 
         while (true) {
-            responseApi = apiClient.getHotProduct(currentPage);
-            if (responseApi == null ||
-                    responseApi.getRespResult() == null ||
-                    responseApi.getRespResult().getResult() == null ||
-                    responseApi.getRespResult().getResult().getProductsList() == null ||
-                    responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
-                System.out.println("No products found on page " + currentPage);
-                break;
-            }
-            allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
-            currentPage++;
             try {
-                // Simulate processing time
+                responseApi = apiClient.getHotProduct(currentPage);
+                if (responseApi == null ||
+                        responseApi.getRespResult() == null ||
+                        responseApi.getRespResult().getResult() == null ||
+                        responseApi.getRespResult().getResult().getProductsList() == null ||
+                        responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
+                    System.out.println("No products found on page " + currentPage);
+                    break;
+                }
+                allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
+                currentPage++;
+
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("Thread was interrupted during paging");
             }
         }
+        System.out.println("Total products before filtering: " + allProducts.size());
         filterAllProducts(allProducts);
         System.out.println("Total products after filtering: " + allProducts.size());
 
@@ -82,17 +83,25 @@ public class ProductService {
 
     private void fetchSkuInfo(List<HotProduct> allProducts) {
         for (HotProduct product : allProducts) {
-            SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId(), product.getSkuId());
-            if (skuInfo == null ||
-                    skuInfo.getRespResult() == null ||
-                    skuInfo.getRespResult().getResult() == null ||
-                    skuInfo.getRespResult().getResult().getSkuProductsList() == null) {
-                continue;
-            }
-            List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
-            skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
+            try {
+                SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId(), product.getSkuId());
+                if (skuInfo != null &&
+                        skuInfo.getRespResult() != null &&
+                        skuInfo.getRespResult().getResult() != null &&
+                        skuInfo.getRespResult().getResult().getSkuProductsList() != null) {
 
-            chooseBestProduct(product, skuAllProducts);
+                    List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
+                    skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
+
+                    chooseBestProduct(product, skuAllProducts);
+                }
+                publishProduct(product);
+
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Thread was interrupted during fetching SKU info");
+            }
         }
     }
 
@@ -131,10 +140,7 @@ public class ProductService {
         }
 
         for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
-            if (sku.isPresent()) {
-                SkuProduct skuProduct = sku.get();
-                publishProduct(product, skuProduct);
-            }
+            sku.ifPresent(skuProduct -> publishProduct(product, skuProduct));
         }
     }
 
@@ -164,16 +170,24 @@ public class ProductService {
 
     }
 
+    private void publishProduct(HotProduct product) {
+        try {
+            telegramService.sendPhotoMessage(product.getImageUrl(),
+                    formatter.formatMessage(product,
+                            urlService.coinUrl(product.getProductId())));
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread was interrupted during publishing product");
+        }
+
+    }
+
     private void filterAllProducts(List<HotProduct> products) {
-        List<String> palavrasChave = List.of(
-                "mouse", "teclado", "webcam", "controle", "gamepad", "mousepad",
-                "headset", "fone", "caixa de som", "microfone", "monitor", "notebook",
-                "laptop", "ssd", "ram", "fans", "fan", "ventilador", "gabinete",
-                "carregador", "cabo", "console", "placa mãe", "cpu", "keyboard",
-                "controller", "earphone", "headphone", "speaker", "speakers",
-                "microphone", "cooler", "case", "pc case", "tower", "charger", "cable",
-                "motherboard"
-        );
+        List<String> palavrasChave = List.of("arzopa", "xiaomi", "delux", "attack shark", "aula",
+                "baseus", "qcy", "mchose", "netac", "xraydisk", "kingspec", "movespeed", "ajazz", "suporte de monitor", "suporte para monitor",
+                "braço articulado", "ryzen", "8bitdo", "easysmx", "akko", "kootion", "epomaker", "magcubic", "ugreen", "kodak", "upsiren",
+                "fifine", "deepcool", "teucer", "machenike", "rapoo", "tcl", "binnune", "veekos", "nacodex", "aoc");
 
         Set<String> seenProductIds = new HashSet<>();
 
@@ -182,7 +196,7 @@ public class ProductService {
                 return true;
             }
 
-            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate().replace("%", "")) <= 0) {
+            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate()) < 90) {
                 return true;
             }
 
@@ -191,7 +205,6 @@ public class ProductService {
             }
 
             String titleLower = product.getProductTitle().toLowerCase();
-            // .noneMatch return true if no match is found
             return palavrasChave.stream().noneMatch(titleLower::contains);
         });
     }
