@@ -45,6 +45,7 @@ public class ProductCacheFilter {
             HotProduct oldProduct = oldListProducts.get(newProduct.getProductId());
             if (oldProduct == null) {
                 productsToProcess.add(newProduct);
+                continue;
             }
 
             if (isCheaper(newProduct, oldProduct)) {
@@ -56,7 +57,7 @@ public class ProductCacheFilter {
 
     private void updateCache(List<HotProduct> newList, LocalDateTime currentTime) {
         this.oldListProducts = newList.stream()
-                .collect(Collectors.toMap(HotProduct::getProductId, Function.identity(), (p1, p2) -> p2));
+                .collect(Collectors.toMap(HotProduct::getProductId, Function.identity(), (p1, p2) -> p1));
         this.cacheTime = currentTime;
     }
 
@@ -64,7 +65,13 @@ public class ProductCacheFilter {
         try {
             BigDecimal newPrice = new BigDecimal(newProduct.getSalePriceApp());
             BigDecimal oldPrice = new BigDecimal(oldProduct.getSalePriceApp());
-            return newPrice.compareTo(oldPrice) < 0;
+            if (newPrice.compareTo(oldPrice) < 0) {
+                return false;
+            }
+            BigDecimal difference = oldPrice.subtract(newPrice);
+            BigDecimal minDiscount = new BigDecimal("1.00");
+
+            return difference.compareTo(minDiscount) >= 0;
         } catch (Exception e) {
             System.out.println("Error comparing prices " + e.getMessage());
             return false;
