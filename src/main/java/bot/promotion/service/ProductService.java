@@ -196,7 +196,7 @@ public class ProductService {
                 return true;
             }
 
-            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate()) < 90) {
+            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate().replace("%", "")) < 90) {
                 return true;
             }
 
