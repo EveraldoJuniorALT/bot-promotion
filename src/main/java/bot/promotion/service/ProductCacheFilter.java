@@ -45,6 +45,7 @@ public class ProductCacheFilter {
             HotProduct oldProduct = oldListProducts.get(newProduct.getProductId());
             if (oldProduct == null) {
                 productsToProcess.add(newProduct);
+                oldListProducts.put(newProduct.getProductId(), newProduct);
                 continue;
             }
 
