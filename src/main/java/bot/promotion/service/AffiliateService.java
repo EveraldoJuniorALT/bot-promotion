@@ -47,10 +47,11 @@ public class AffiliateService {
         request.setTrackingId(tracking);
 
         try {
+            Thread.sleep(3000);
             AliexpressAffiliateLinkGenerateResponse linkResponse = iopClient.execute(request, accessToken);
             if (!linkResponse.isSuccess()) {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(7000);
                     linkResponse = iopClient.execute(request, accessToken);
                     if (!linkResponse.isSuccess()) {
                         System.out.println("Error answer from API is null in line 56 on second attempt");

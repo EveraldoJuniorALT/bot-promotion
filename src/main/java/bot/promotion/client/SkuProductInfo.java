@@ -32,10 +32,11 @@ public class SkuProductInfo {
         request.addApiParameter("sku_ids", skuID);
 
         try {
+            Thread.sleep(5000);
             IopResponse response = iopClient.execute(request, Protocol.TOP);
             if (!response.isSuccess()) {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(4000);
                     response = iopClient.execute(request, Protocol.TOP);
                     if (!response.isSuccess()) {
                         System.out.println("Error answer from API is null in line 41");

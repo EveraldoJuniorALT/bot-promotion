@@ -34,20 +34,36 @@ public class AliexpressApiClient {
         this.objectMapper = objectMapper;
     }
 
-    public HotProductResponse getHotProduct(int pageNo) {
+    public HotProductResponse getHotProduct(int pageNo, String keyword) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
             System.out.println("Access token is null in line 42");
             return null;
         }
 
-        AliexpressAffiliateHotproductQueryRequest request = getHotproductQueryRequest(pageNo);
+        AliexpressAffiliateHotproductQueryRequest request = getHotproductQueryRequest(pageNo, keyword);
 
         try {
             AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
-                System.out.println("Error answer from API is null in line 49");
-                return null;
+                try {
+                    Thread.sleep(5000);
+                    responseApi = iopClient.execute(request, accessToken);
+                    if (!responseApi.isSuccess()) {
+                        System.out.println("API call failed after retry");
+                        return null;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Thread was interrupted during retry wait");
+                    return null;
+                } catch (ApiException e) {
+                    System.out.println("Error during API retry: " + e.getMessage());
+                    return null;
+                } catch (Exception e) {
+                    System.out.println("General error during API retry: " + e.getMessage());
+                    return null;
+                }
             }
 
             String jsonBody = responseApi.getGopResponseBody();
@@ -57,7 +73,7 @@ public class AliexpressApiClient {
             System.out.println("Error get hot products in line 57 on getHotProduct" + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.out.println("Error get hot products in line 60 on  getHotProduct" + e.getMessage());
+            System.out.println("Error get hot products in line 60 on getHotProduct" + e.getMessage());
             return null;
         }
     }
@@ -87,9 +103,10 @@ public class AliexpressApiClient {
         return this.cachedAccessToken;
     }
 
-    private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo) {
+    private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo, String keyword) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
-        request.setCategoryIds("7,44");
+        request.setCategoryIds("200001081");
+        request.setKeywords(keyword);
         request.setMinSalePrice(1500L);
         request.setMaxSalePrice(200000L);
         request.setPageNo((long) pageNo);
