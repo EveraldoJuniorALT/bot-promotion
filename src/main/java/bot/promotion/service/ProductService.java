@@ -2,6 +2,8 @@ package bot.promotion.service;
 
 import bot.promotion.client.AliexpressApiClient;
 import bot.promotion.client.SkuProductInfo;
+import bot.promotion.config.BrandAndModel;
+import bot.promotion.config.BrandsAndModelsFilter;
 import bot.promotion.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ public class ProductService {
     private final ProductUrlService urlService;
     private final SkuProductInfo skuProductInfo;
     private final ProductCacheFilter productCacheFilter;
+    private final BrandsAndModelsFilter brandsModels;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -30,48 +33,59 @@ public class ProductService {
 
     @Autowired
     public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter,
-                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter) {
+                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels) {
         this.apiClient = apiClient;
         this.telegramService = telegramService;
         this.formatter = formatter;
         this.urlService = urlService;
         this.skuProductInfo = skuProductInfo;
         this.productCacheFilter = productCacheFilter;
+        this.brandsModels = brandsModels;
     }
 
     public void fetchHotProducts() {
-        int currentPage = 1;
-        HotProductResponse responseApi = apiClient.getHotProduct(currentPage);
+        List<BrandAndModel> brandsAndModels = brandsModels.getBrandsAndModels();
 
-        if (responseApi.getRespResult().getResult().getProductsList() == null) {
-            System.out.println("No products found on the first page.");
-            return;
+        for (BrandAndModel brands : brandsAndModels) {
+            String brand = brands.getBrands();
+            List<String> acceptedModels = brands.getModelsAccepted();
+            List<String> excludedModels = brands.getModelsExcluded();
+
+            fetchProductsForKeyword(brand, acceptedModels, excludedModels);
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Thread was interrupted during brand processing");
+            }
         }
+    }
 
-        List<HotProduct> allProducts = new ArrayList<>(responseApi.getRespResult().getResult().getProductsList());
+    private void fetchProductsForKeyword(String keyword, List<String> models, List<String> excludedModels) {
+        List<HotProduct> allProducts = new ArrayList<>();
+        int currentPage = 1;
 
         while (true) {
             try {
-                responseApi = apiClient.getHotProduct(currentPage);
+                HotProductResponse responseApi = apiClient.getHotProduct(currentPage, keyword);
                 if (responseApi == null ||
                         responseApi.getRespResult() == null ||
                         responseApi.getRespResult().getResult() == null ||
                         responseApi.getRespResult().getResult().getProductsList() == null ||
                         responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
-                    System.out.println("No products found on page " + currentPage);
                     break;
                 }
                 allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
                 currentPage++;
 
-                Thread.sleep(1000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("Thread was interrupted during paging");
+                break;
             }
         }
-        System.out.println("Total products before filtering: " + allProducts.size());
-        filterAllProducts(allProducts);
+        filterAllProducts(allProducts, models, excludedModels);
         System.out.println("Total products after filtering: " + allProducts.size());
 
         List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(allProducts);
@@ -97,7 +111,7 @@ public class ProductService {
                 }
                 publishProduct(product);
 
-                Thread.sleep(2000);
+                Thread.sleep(10000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("Thread was interrupted during fetching SKU info");
@@ -117,9 +131,8 @@ public class ProductService {
 
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
-                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
-                        Collectors.minBy(Comparator.comparing(SkuProduct::getSalePrice))
-                ));
+                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()), Collectors.minBy(
+                        Comparator.comparing(SkuProduct::getSalePrice))));
 
         List<SkuProduct> cheapestByGroup = groupedByCheapest.values().stream()
                 .filter(Optional::isPresent)
@@ -183,11 +196,7 @@ public class ProductService {
 
     }
 
-    private void filterAllProducts(List<HotProduct> products) {
-        List<String> palavrasChave = List.of("arzopa", "xiaomi", "delux", "attack shark", "aula",
-                "baseus", "qcy", "mchose", "netac", "xraydisk", "kingspec", "movespeed", "ajazz", "suporte de monitor", "suporte para monitor",
-                "braço articulado", "ryzen", "8bitdo", "easysmx", "akko", "kootion", "epomaker", "magcubic", "ugreen", "kodak", "upsiren",
-                "fifine", "deepcool", "teucer", "machenike", "rapoo", "tcl", "binnune", "veekos", "nacodex", "aoc");
+    private void filterAllProducts(List<HotProduct> products, List<String> models, List<String> excludedModels) {
 
         Set<String> seenProductIds = new HashSet<>();
 
@@ -196,7 +205,7 @@ public class ProductService {
                 return true;
             }
 
-            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate().replace("%", "")) < 90) {
+            if (product.getEvaluateRate() == null || product.getEvaluateRate().isBlank() || Double.parseDouble(product.getEvaluateRate().replace("%", "")) < 80) {
                 return true;
             }
 
@@ -204,8 +213,17 @@ public class ProductService {
                 return true;
             }
 
+            if (models == null || models.isEmpty()) {
+                return false;
+            }
+
             String titleLower = product.getProductTitle().toLowerCase();
-            return palavrasChave.stream().noneMatch(titleLower::contains);
+            return models.stream().noneMatch(titleLower::contains);
+        });
+
+        products.removeIf(product -> {
+            String titleLower = product.getProductTitle().toLowerCase();
+            return excludedModels.stream().anyMatch(titleLower::contains);
         });
     }
 }
