@@ -41,11 +41,10 @@ public class TelegramService extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-
             String messageText = update.getMessage().getText();
             String url = findUrlInText(messageText);
 
-            if (url != null && (url.contains("s.click.aliexpress.com"))) {
+            if (url != null && (url.contains("s.click.aliexpress.com") || url.contains("a.aliexpress.com"))) {
                 String productId = productUrlService.processUrlAndExtractId(url);
                 productTelegramService.sendProductInfo(productId);
             }
