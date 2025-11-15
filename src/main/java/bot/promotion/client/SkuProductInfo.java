@@ -36,7 +36,7 @@ public class SkuProductInfo {
             IopResponse response = iopClient.execute(request, Protocol.TOP);
             if (!response.isSuccess()) {
                 try {
-                    Thread.sleep(4000);
+                    Thread.sleep(7000);
                     response = iopClient.execute(request, Protocol.TOP);
                     if (!response.isSuccess()) {
                         System.out.println("Error answer from API is null in line 41");

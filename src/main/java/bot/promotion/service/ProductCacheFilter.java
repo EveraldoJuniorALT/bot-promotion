@@ -20,7 +20,7 @@ public class ProductCacheFilter {
     private final Clock clock;
     private Map<String, HotProduct> oldListProducts = new HashMap<>();
     private LocalDateTime cacheTime;
-    private static final Duration CACHE_DURATION = Duration.ofHours(6);
+    private static final Duration CACHE_DURATION = Duration.ofHours(12);
 
     @Autowired
     public ProductCacheFilter(Clock clock) {

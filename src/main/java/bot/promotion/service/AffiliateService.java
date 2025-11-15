@@ -47,7 +47,7 @@ public class AffiliateService {
         request.setTrackingId(tracking);
 
         try {
-            Thread.sleep(3000);
+            Thread.sleep(5000);
             AliexpressAffiliateLinkGenerateResponse linkResponse = iopClient.execute(request, accessToken);
             if (!linkResponse.isSuccess()) {
                 try {
