@@ -78,7 +78,7 @@ public class ProductService {
                 allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
                 currentPage++;
 
-                Thread.sleep(2000);
+                Thread.sleep(4000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("Thread was interrupted during paging");
@@ -108,6 +108,8 @@ public class ProductService {
                     skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
 
                     chooseBestProduct(product, skuAllProducts);
+                    Thread.sleep(10000);
+                    continue;
                 }
                 publishProduct(product);
 

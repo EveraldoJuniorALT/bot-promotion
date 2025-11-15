@@ -58,6 +58,7 @@ public class ProductTelegramService {
 
             List<SkuProduct> skuProductsList = skuInfo.getRespResult().getResult().getSkuProductsList();
             chooseBestProduct(productDetail.getFirst(), skuProductsList);
+            return;
         }
         publishProduct(productDetail.getFirst());
     }
@@ -92,10 +93,7 @@ public class ProductTelegramService {
         }
 
         for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
-            if (sku.isPresent()) {
-                SkuProduct skuProduct = sku.get();
-                publishProduct(productDetail, skuProduct);
-            }
+            sku.ifPresent(skuProduct -> publishProduct(productDetail, skuProduct));
         }
     }
 
