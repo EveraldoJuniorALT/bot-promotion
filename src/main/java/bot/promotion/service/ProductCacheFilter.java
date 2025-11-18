@@ -17,13 +17,15 @@ import java.util.stream.Collectors;
 
 @Component
 public class ProductCacheFilter {
+    private final FinalPriceService finalPriceService;
     private final Clock clock;
     private Map<String, HotProduct> oldListProducts = new HashMap<>();
     private LocalDateTime cacheTime;
     private static final Duration CACHE_DURATION = Duration.ofHours(12);
 
     @Autowired
-    public ProductCacheFilter(Clock clock) {
+    public ProductCacheFilter(FinalPriceService finalPriceService, Clock clock) {
+        this.finalPriceService = finalPriceService;
         this.clock = clock;
         this.cacheTime = LocalDateTime.now(clock);
     }
@@ -32,7 +34,6 @@ public class ProductCacheFilter {
         LocalDateTime now = LocalDateTime.now(clock);
         if (oldListProducts.isEmpty()) {
             updateCache(newList, now);
-            return newList;
         }
 
         if (Duration.between(cacheTime, now).compareTo(CACHE_DURATION) >= 0) {
@@ -64,13 +65,15 @@ public class ProductCacheFilter {
 
     private boolean isCheaper(HotProduct newProduct, HotProduct oldProduct) {
         try {
-            BigDecimal newPrice = new BigDecimal(newProduct.getSalePriceApp());
-            BigDecimal oldPrice = new BigDecimal(oldProduct.getSalePriceApp());
-            if (newPrice.compareTo(oldPrice) < 0) {
+            BigDecimal newPrice = new BigDecimal(finalPriceService.calculateFinalPrice(newProduct));
+            BigDecimal oldPrice = new BigDecimal(finalPriceService.calculateFinalPrice(oldProduct));
+
+            if (newPrice.compareTo(oldPrice) >= 0) {
                 return false;
             }
-            BigDecimal difference = oldPrice.subtract(newPrice);
-            BigDecimal minDiscount = new BigDecimal("1.00");
+
+            BigDecimal difference = newPrice.subtract(oldPrice);
+            BigDecimal minDiscount = new BigDecimal("0.50");
 
             return difference.compareTo(minDiscount) >= 0;
         } catch (Exception e) {

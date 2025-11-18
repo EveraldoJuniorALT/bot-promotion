@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +68,7 @@ public class FinalPriceService {
         BigDecimal afterDiscount = ProductPriceWithCoupon(product);
 
         if (product.getOriginalCurrency().equals("BRL")) {
-            return format("R$ %.2f", afterDiscount);
+            return afterDiscount.setScale(2, RoundingMode.HALF_UP).toString();
         }
 
         BigDecimal limiteUSD = new BigDecimal("50.00");
@@ -78,14 +79,14 @@ public class FinalPriceService {
             BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
             BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
-            return format("R$ %.2f", finalPrice);
+            return finalPrice.setScale(2, RoundingMode.HALF_UP).toString();
         }
 
         BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
         BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
         BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
 
-        return format("R$ %.2f", finalPrice);
+        return finalPrice.setScale(2, RoundingMode.HALF_UP).toString();
     }
 
     /*
