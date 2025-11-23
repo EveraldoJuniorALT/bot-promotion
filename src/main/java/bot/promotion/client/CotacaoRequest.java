@@ -1,4 +1,4 @@
-package bot.promotion.service;
+package bot.promotion.client;
 
 import bot.promotion.dto.BCBApiResponse;
 import jakarta.annotation.PostConstruct;
@@ -14,12 +14,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
-public class CotacaoService {
+public class CotacaoRequest {
     private final RestTemplate restTemplate;
     private final AtomicReference<Double> cachedCotacao = new AtomicReference<>();
 
     @Autowired
-    public CotacaoService(RestTemplate restTemplate) {
+    public CotacaoRequest(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
