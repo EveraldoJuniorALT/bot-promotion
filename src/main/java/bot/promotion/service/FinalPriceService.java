@@ -1,5 +1,6 @@
 package bot.promotion.service;
 
+import bot.promotion.client.CotacaoRequest;
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.SkuProduct;
 import bot.promotion.model.Coupon;
@@ -25,12 +26,14 @@ public class FinalPriceService {
     private static final BigDecimal IMPORT_DUTY_RATE_OVER = new BigDecimal("0.28"); // 28% import duty rate for > $50 products
     private static final BigDecimal ICMS_RATE = new BigDecimal("0.20"); // 20% ICMS tax rate
     private static final Pattern VALUE_PROMO_CODE = Pattern.compile("BRL (\\d+\\.\\d+) off");
-    private final CotacaoService cotacao;
+    private final CotacaoRequest cotacao;
+    private final AliexpressCoinService aliexpressCoinService;
 
     @Autowired
-    public FinalPriceService(CouponRepository couponRepository, CotacaoService cotacaoService) {
+    public FinalPriceService(CouponRepository couponRepository, CotacaoRequest cotacaoRequest, AliexpressCoinService aliexpressCoinService) {
         this.couponRepository = couponRepository;
-        this.cotacao = cotacaoService;
+        this.cotacao = cotacaoRequest;
+        this.aliexpressCoinService = aliexpressCoinService;
     }
 
     /*
@@ -39,8 +42,8 @@ public class FinalPriceService {
      * But, for now, I need to deliver the feature.
      */
 
-    public String calculateFinalPrice(HotProduct product, SkuProduct skuProduct) {
-        BigDecimal afterDiscount = ProductPriceWithCoupon(product, skuProduct);
+    public String calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
+        BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
 
         if (skuProduct.getShipFromCountry().equals("BR")) {
             return format("R$ %.2f", afterDiscount);
@@ -64,8 +67,8 @@ public class FinalPriceService {
         return format("R$ %.2f", finalPrice);
     }
 
-    public String calculateFinalPrice(HotProduct product) {
-        BigDecimal afterDiscount = ProductPriceWithCoupon(product);
+    public String calculateFinalPrice(HotProduct product, String affiliateLink) {
+        BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, affiliateLink);
 
         if (product.getOriginalCurrency().equals("BRL")) {
             return afterDiscount.setScale(2, RoundingMode.HALF_UP).toString();
@@ -123,7 +126,7 @@ public class FinalPriceService {
                 .collect(Collectors.toList());
     }
 
-    private BigDecimal ProductPriceWithCoupon(HotProduct product, SkuProduct skuProduct) {
+    private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
 
         BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
         double valuePromotionCode = 0.0;
@@ -139,6 +142,7 @@ public class FinalPriceService {
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .max(Comparator.comparing(Coupon::getDiscount));
 
+
         BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
 
         if (coupons.isPresent()) {
@@ -149,10 +153,23 @@ public class FinalPriceService {
             BigDecimal shippingFees = new BigDecimal(skuProduct.getShippingFees());
             discountedProductValue = discountedProductValue.add(shippingFees);
         }
-        return discountedProductValue;
+
+        String extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        if (extraDiscountCoins == null) return discountedProductValue;
+        try {
+            BigDecimal discountCoins = new BigDecimal(extraDiscountCoins);
+            BigDecimal discountValueCoin = valueProduct.multiply(discountCoins)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            return discountedProductValue.subtract(discountValueCoin);
+        } catch (NumberFormatException e) {
+            System.out.println("Error calculate coin discount: " + e.getMessage());
+            return discountedProductValue;
+        }
+
     }
 
-    private BigDecimal ProductPriceWithCoupon(HotProduct product) {
+    private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, String affiliateLink) {
 
         BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
         double valuePromotionCode = 0.0;
@@ -173,6 +190,18 @@ public class FinalPriceService {
         if (coupons.isPresent()) {
             discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
         }
-        return discountedProductValue;
+
+        String extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        if (extraDiscountCoins == null) return discountedProductValue;
+        try {
+            BigDecimal discountCoins = new BigDecimal(extraDiscountCoins);
+            BigDecimal discountValueCoin = valueProduct.multiply(discountCoins)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            return discountedProductValue.subtract(discountValueCoin);
+        } catch (NumberFormatException e) {
+            System.out.println("Error calculate coin discount: " + e.getMessage());
+            return discountedProductValue;
+        }
     }
 }

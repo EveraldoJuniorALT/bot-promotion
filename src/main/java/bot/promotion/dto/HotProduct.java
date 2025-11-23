@@ -31,6 +31,9 @@ public class HotProduct {
     @JsonProperty("target_app_sale_price")
     private String salePriceApp;
 
+    // Save affiliate link for later use
+    private String affiliateLink;
+
     @JsonProperty("promo_code_info")
     private PromotionCode promotionCode;
 
