@@ -54,6 +54,18 @@
         </dependency>
 
         <dependency>
+            <groupId>io.appium</groupId>
+            <artifactId>java-client</artifactId>
+            <version>10.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.38.0</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.aliexpress.sdk</groupId>
             <artifactId>gop-sdk-java</artifactId>
             <version>1.0.0</version> <scope>system</scope>
@@ -83,6 +95,7 @@
             <version>24.0.0</version>
             <scope>compile</scope>
         </dependency>
+
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
