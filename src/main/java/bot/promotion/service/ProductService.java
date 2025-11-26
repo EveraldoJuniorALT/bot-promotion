@@ -45,13 +45,14 @@ public class ProductService {
 
     public void fetchHotProducts() {
         List<BrandAndModel> brandsAndModels = brandsModels.getBrandsAndModels();
+        List<HotProduct> productsAfterFiltration = new ArrayList<>();
 
         for (BrandAndModel brands : brandsAndModels) {
             String brand = brands.getBrands();
             List<String> acceptedModels = brands.getModelsAccepted();
             List<String> excludedModels = brands.getModelsExcluded();
 
-            fetchProductsForKeyword(brand, acceptedModels, excludedModels);
+            productsAfterFiltration.addAll(fetchProductsForKeyword(brand, acceptedModels, excludedModels));
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -59,9 +60,10 @@ public class ProductService {
                 System.out.println("Thread was interrupted during brand processing");
             }
         }
+        processHotProducts(productsAfterFiltration);
     }
 
-    private void fetchProductsForKeyword(String keyword, List<String> models, List<String> excludedModels) {
+    private List<HotProduct> fetchProductsForKeyword(String keyword, List<String> models, List<String> excludedModels) {
         List<HotProduct> allProducts = new ArrayList<>();
         int currentPage = 1;
 
@@ -87,12 +89,21 @@ public class ProductService {
         }
         filterAllProducts(allProducts, models, excludedModels);
         System.out.println("Total products after filtering: " + allProducts.size());
+        return allProducts;
 
-        List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(allProducts);
+    }
+
+    private void processHotProducts(List<HotProduct> products) {
+        if (products == null || products.isEmpty()) {
+            return;
+        }
+
+        List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(products);
 
         if (!processedProducts.isEmpty()) {
-            fetchSkuInfo(allProducts);
+            fetchSkuInfo(processedProducts);
         }
+
     }
 
     private void fetchSkuInfo(List<HotProduct> allProducts) {
@@ -134,7 +145,7 @@ public class ProductService {
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
                         SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()), Collectors.minBy(
-                        Comparator.comparing(SkuProduct::getSalePrice))));
+                                Comparator.comparing(SkuProduct::getSalePrice))));
 
         List<SkuProduct> cheapestByGroup = groupedByCheapest.values().stream()
                 .filter(Optional::isPresent)
