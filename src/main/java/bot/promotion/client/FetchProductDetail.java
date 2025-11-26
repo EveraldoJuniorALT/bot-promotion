@@ -44,10 +44,11 @@ public class FetchProductDetail {
         AliexpressAffiliateProductdetailGetRequest request = getProductDetailRequest(productId);
 
         try {
+            Thread.sleep(3000);
             AliexpressAffiliateProductdetailGetResponse responseApi = iopClient.execute(request, accessToken);
             if (!responseApi.isSuccess()) {
                 try {
-                    Thread.sleep(3000);
+                    Thread.sleep(5000);
                     responseApi = iopClient.execute(request, accessToken);
                     if (!responseApi.isSuccess()) {
                         System.out.println("Error answer from API is null in line 50 on second attempt");
