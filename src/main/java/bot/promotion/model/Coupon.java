@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class Coupon {
     @Id
     private String couponCode;
+
     private Double discount;
     private Double minimumSpend;
     private LocalDateTime startTime;
