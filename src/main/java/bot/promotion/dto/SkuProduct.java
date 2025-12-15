@@ -19,6 +19,9 @@ public class SkuProduct {
     @JsonProperty("sku_image_link")
     private String skuImage;
 
+    @JsonProperty("sku_properties")
+    private String skuProperties;
+
     @JsonProperty("ship_from_country")
     private String shipFromCountry;
 }

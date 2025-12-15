@@ -32,6 +32,11 @@ public class ProductCacheFilter {
 
     public List<HotProduct> compareAndFilter(List<HotProduct> newList) {
         LocalDateTime now = LocalDateTime.now(clock);
+        /*
+        * First time initialization of the cache
+        * If returns nothing on first run to avoid reaching
+        * the API Request limit and being blocked for a few seconds.
+        */
         if (oldListProducts.isEmpty()) {
             updateCache(newList, now);
         }

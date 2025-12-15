@@ -28,7 +28,7 @@ public class TelegramMessageFormatter {
 
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
-        message.append("💰 Valor: R$ ").append(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLink)).append("\n\n");
+        message.append("💰 Valor: ").append(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLink)).append("\n\n");
 
         List<Coupon> coupons = finalPriceService.couponListAvailable(skuProduct);
         boolean hasPromoCode = product.getPromotionCode() != null && product.getPromotionCode().getCodePromotion() != null && !product.getPromotionCode().getCodePromotion().isBlank();
@@ -64,7 +64,7 @@ public class TelegramMessageFormatter {
 
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
-        message.append("💰 Valor: R$").append(finalPriceService.calculateFinalPrice(product, affiliateLink)).append("\n\n");
+        message.append("💰 Valor: ").append(finalPriceService.calculateFinalPrice(product, affiliateLink)).append("\n\n");
 
         List<Coupon> coupons = finalPriceService.couponListAvailable(product);
         boolean hasPromoCode = product.getPromotionCode() != null && product.getPromotionCode().getCodePromotion() != null && !product.getPromotionCode().getCodePromotion().isBlank();
