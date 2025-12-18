@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class ProductTelegramService {
     private final SkuProductInfo skuProductInfo;
     private final FetchProductDetail fetchProductDetail;
-    private final TelegramService telegramService;
+    private final TelegramReceiveAndPost telegramReceiveAndPost;
     private final TelegramMessageFormatter formatter;
     private final ProductUrlService urlService;
 
@@ -29,10 +29,10 @@ public class ProductTelegramService {
     );
 
     @Autowired
-    public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramService telegramService, TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService) {
+    public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
-        this.telegramService = telegramService;
+        this.telegramReceiveAndPost = telegramReceiveAndPost;
         this.formatter = telegramMessageFormatter;
         this.urlService = urlService;
     }
@@ -115,7 +115,7 @@ public class ProductTelegramService {
 
     private void publishProduct(HotProduct productDetail, SkuProduct skuProduct) {
         try {
-            telegramService.sendPhotoMessage(skuProduct.getSkuImage(),
+            telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
                     formatter.formatMessage(productDetail, skuProduct,
                             urlService.coinUrl(productDetail.getProductId())));
             Thread.sleep(500);
@@ -131,7 +131,7 @@ public class ProductTelegramService {
      */
     private void publishProduct(HotProduct productDetail) {
         try {
-            telegramService.sendPhotoMessage(productDetail.getImageUrl(),
+            telegramReceiveAndPost.sendPhotoMessage(productDetail.getImageUrl(),
                     formatter.formatMessage(productDetail,
                             urlService.coinUrl(productDetail.getProductId())));
             Thread.sleep(500);

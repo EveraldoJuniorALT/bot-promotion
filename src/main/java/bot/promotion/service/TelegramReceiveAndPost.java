@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
-public class TelegramService extends TelegramLongPollingBot {
+public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Getter
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -28,7 +28,7 @@ public class TelegramService extends TelegramLongPollingBot {
             "\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
 
     @Autowired
-    public TelegramService(ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
+    public TelegramReceiveAndPost(ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
     }
@@ -42,8 +42,15 @@ public class TelegramService extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
-            String url = findUrlInText(messageText);
 
+            String[] parts = messageText.split("\\s+", 2);
+            String command = parts[0];
+            if (command.startsWith("/save")) {
+                System.out.println("Command /save received: " + parts[1]);
+                return;
+            }
+
+            String url = findUrlInText(messageText);
             if (url != null && (url.contains("s.click.aliexpress.com") || url.contains("a.aliexpress.com"))) {
                 String productId = productUrlService.processUrlAndExtractId(url);
                 productTelegramService.sendProductInfo(productId);
@@ -54,6 +61,10 @@ public class TelegramService extends TelegramLongPollingBot {
                 productTelegramService.sendProductInfo(productId);
             }
         }
+    }
+
+    private void deleteUserMessage(Integer messageId) {
+        // Implement message deletion logic if needed
     }
 
     private String findUrlInText(String text) {

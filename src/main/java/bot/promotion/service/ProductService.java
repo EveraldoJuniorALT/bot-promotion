@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProductService {
     private final AliexpressApiClient apiClient;
-    private final TelegramService telegramService;
+    private final TelegramReceiveAndPost telegramReceiveAndPost;
     private final TelegramMessageFormatter formatter;
     private final ProductUrlService urlService;
     private final SkuProductInfo skuProductInfo;
@@ -32,10 +32,10 @@ public class ProductService {
     );
 
     @Autowired
-    public ProductService(AliexpressApiClient apiClient, TelegramService telegramService, TelegramMessageFormatter formatter,
+    public ProductService(AliexpressApiClient apiClient, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
                           ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels) {
         this.apiClient = apiClient;
-        this.telegramService = telegramService;
+        this.telegramReceiveAndPost = telegramReceiveAndPost;
         this.formatter = formatter;
         this.urlService = urlService;
         this.skuProductInfo = skuProductInfo;
@@ -185,7 +185,7 @@ public class ProductService {
 
     private void publishProduct(HotProduct product, SkuProduct skuProduct) {
         try {
-            telegramService.sendPhotoMessage(skuProduct.getSkuImage(),
+            telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
                     formatter.formatMessage(product, skuProduct,
                             urlService.coinUrl(product.getProductId())));
             Thread.sleep(2000);
@@ -198,7 +198,7 @@ public class ProductService {
 
     private void publishProduct(HotProduct product) {
         try {
-            telegramService.sendPhotoMessage(product.getImageUrl(),
+            telegramReceiveAndPost.sendPhotoMessage(product.getImageUrl(),
                     formatter.formatMessage(product,
                             urlService.coinUrl(product.getProductId())));
             Thread.sleep(2000);

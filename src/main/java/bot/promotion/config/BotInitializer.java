@@ -1,6 +1,6 @@
 package bot.promotion.config;
 
-import bot.promotion.service.TelegramService;
+import bot.promotion.service.TelegramReceiveAndPost;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
@@ -11,18 +11,18 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Component
 public class BotInitializer {
-    private final TelegramService telegramService;
+    private final TelegramReceiveAndPost telegramReceiveAndPost;
 
     @Autowired
-    public BotInitializer(TelegramService telegramService) {
-        this.telegramService = telegramService;
+    public BotInitializer(TelegramReceiveAndPost telegramReceiveAndPost) {
+        this.telegramReceiveAndPost = telegramReceiveAndPost;
     }
 
     @EventListener(ContextRefreshedEvent.class)
     public void registerTelegramBot() {
         try {
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(telegramService);
+            botsApi.registerBot(telegramReceiveAndPost);
         } catch (TelegramApiException e) {
             System.err.println(">>> [ERRO] Falha ao registrar o bot: " + e.getMessage());
         }
