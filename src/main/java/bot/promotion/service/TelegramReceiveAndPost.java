@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -17,62 +18,41 @@ import java.util.regex.Pattern;
 @Component
 public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Getter
-    @Value("${telegram.bot.token}")
-    private String botToken;
+    @Value("${telegram.bot.username}")
+    private String botUserName;
+
     @Value("${telegram.bot.chat-id}")
     private String chatId;
 
     private final ProductUrlService productUrlService;
     private final ProductTelegramService productTelegramService;
-    private static final Pattern URL_PATTERN = Pattern.compile(
-            "\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
+    private static final Pattern URL_PATTERN = Pattern.compile("\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
 
     @Autowired
-    public TelegramReceiveAndPost(ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
+    public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken, ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
+        super(botToken);
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
     }
 
     @Override
     public String getBotUsername() {
-        return "TesteBotPromotion";
+        return botUserName;
     }
 
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
+            Integer messageId = update.getMessage().getMessageId();
 
-            String[] parts = messageText.split("\\s+", 2);
-            String command = parts[0];
-            if (command.startsWith("/save")) {
-                System.out.println("Command /save received: " + parts[1]);
-                return;
-            }
-
-            String url = findUrlInText(messageText);
-            if (url != null && (url.contains("s.click.aliexpress.com") || url.contains("a.aliexpress.com"))) {
-                String productId = productUrlService.processUrlAndExtractId(url);
-                productTelegramService.sendProductInfo(productId);
-            }
-
-            if (url != null && (url.contains("pt.aliexpress.com"))) {
-                String productId = productUrlService.extractProductId(url);
-                productTelegramService.sendProductInfo(productId);
+            try {
+                deleteUserMessage(messageId);
+                processMessageReceived(messageText);
+            } catch (Exception e) {
+                System.out.println("Error processing received message: " + e.getMessage());
             }
         }
-    }
-
-    private void deleteUserMessage(Integer messageId) {
-        // Implement message deletion logic if needed
-    }
-
-    private String findUrlInText(String text) {
-        Matcher matcher = URL_PATTERN.matcher(text);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
     }
 
     public void sendPhotoMessage(String photoUrl, String caption) {
@@ -87,4 +67,51 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
             System.out.println("Error sending photo message: " + e.getMessage());
         }
     }
+
+    private void processMessageReceived(String messageText) {
+        String productUrl = findUrlInText(messageText);
+        if (productUrl == null) {
+            return;
+        }
+
+        if (messageText.startsWith("/save")) {
+            processSaveCommand(messageText, productUrl);
+            return;
+        }
+
+        processProductUrl(productUrl);
+    }
+
+    private void processProductUrl(String url) {
+        String productId = productUrlService.processUrlAndExtractId(url);
+        productTelegramService.sendProductInfo(productId);
+    }
+
+    private void processSaveCommand(String command, String productUrl) {
+        String[] parts = command.split("\\s+", 2);
+        if (parts.length < 2) {
+            return;
+        }
+        // I will implement saving functionality here in the future
+    }
+
+    private void deleteUserMessage(Integer messageId) {
+        DeleteMessage deleteMessage = new DeleteMessage();
+        deleteMessage.setChatId(chatId);
+        deleteMessage.setMessageId(messageId);
+        try {
+            execute(deleteMessage);
+        } catch (TelegramApiException e) {
+            System.out.println("Error deleting user message in line 75: " + e.getMessage());
+        }
+    }
+
+    private String findUrlInText(String text) {
+        Matcher matcher = URL_PATTERN.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
 }
