@@ -40,42 +40,21 @@ public class AliexpressApiClient {
             System.out.println("Access token is null in line 42");
             return null;
         }
+        AliexpressAffiliateHotproductQueryRequest request = getHotProductQueryRequest(pageNo, keyword);
 
-        AliexpressAffiliateHotproductQueryRequest request = getHotproductQueryRequest(pageNo, keyword);
-
-        try {
-            AliexpressAffiliateHotproductQueryResponse responseApi = iopClient.execute(request, accessToken);
-            if (!responseApi.isSuccess()) {
-                try {
-                    Thread.sleep(5000);
-                    responseApi = iopClient.execute(request, accessToken);
-                    if (!responseApi.isSuccess()) {
-                        System.out.println("API call failed after retry");
-                        return null;
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.out.println("Thread was interrupted during retry wait");
-                    return null;
-                } catch (ApiException e) {
-                    System.out.println("Error during API retry: " + e.getMessage());
-                    return null;
-                } catch (Exception e) {
-                    System.out.println("General error during API retry: " + e.getMessage());
-                    return null;
-                }
-            }
-
-            String jsonBody = responseApi.getGopResponseBody();
-            return objectMapper.readValue(jsonBody, HotProductResponse.class);
-
-        } catch (ApiException e) {
-            System.out.println("Error get hot products in line 57 on getHotProduct" + e.getMessage());
-            return null;
-        } catch (Exception e) {
-            System.out.println("Error get hot products in line 60 on getHotProduct" + e.getMessage());
-            return null;
+        safeSleep(3000); // Sleep for 3 seconds before making the request
+        AliexpressAffiliateHotproductQueryResponse responseApi = executeRequest(request, accessToken);
+        if (!responseIsValid(responseApi)) {
+            System.out.println("First attempt failed, retrying");
+            safeSleep(5000); // Sleep for 5 seconds before retrying
+            responseApi = executeRequest(request, accessToken);
         }
+
+        if (responseIsValid(responseApi)) {
+            return parseResponse(responseApi);
+        }
+        System.out.println("Failed to fetch hot products after retrying.");
+        return null;
     }
 
     private synchronized String getValidAccessToken() {
@@ -103,7 +82,39 @@ public class AliexpressApiClient {
         return this.cachedAccessToken;
     }
 
-    private AliexpressAffiliateHotproductQueryRequest getHotproductQueryRequest(int pageNo, String keyword) {
+    private void safeSleep(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread was interrupted during sleep: " + e.getMessage());
+        }
+    }
+
+    private boolean responseIsValid(AliexpressAffiliateHotproductQueryResponse responseApi) {
+        return responseApi != null && responseApi.isSuccess();
+    }
+
+    private HotProductResponse parseResponse(AliexpressAffiliateHotproductQueryResponse responseApi) {
+        try {
+            String jsonBody = responseApi.getGopResponseBody();
+            return objectMapper.readValue(jsonBody, HotProductResponse.class);
+        } catch (Exception e) {
+            System.out.println("Error parsing JSON response in line 121: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private AliexpressAffiliateHotproductQueryResponse executeRequest(AliexpressAffiliateHotproductQueryRequest request, String accessToken) {
+        try {
+            return iopClient.execute(request, accessToken);
+        } catch (ApiException e) {
+            System.out.println("Error executing API request in line 119: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private AliexpressAffiliateHotproductQueryRequest getHotProductQueryRequest(int pageNo, String keyword) {
         AliexpressAffiliateHotproductQueryRequest request = new AliexpressAffiliateHotproductQueryRequest();
         request.setCategoryIds("200001081");
         request.setKeywords(keyword);
