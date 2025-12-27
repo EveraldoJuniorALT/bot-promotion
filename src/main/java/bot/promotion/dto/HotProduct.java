@@ -19,9 +19,6 @@ public class HotProduct {
     @JsonProperty("product_id")
     private String productId;
 
-    @JsonProperty("sku_id")
-    private String skuID;
-
     @JsonProperty("product_main_image_url")
     private String imageUrl;
 
