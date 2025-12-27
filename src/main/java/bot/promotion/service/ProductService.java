@@ -187,7 +187,7 @@ public class ProductService {
         try {
             telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
                     formatter.formatMessage(product, skuProduct,
-                            urlService.coinUrl(product.getProductId())));
+                            urlService.createCoinUrl(product.getProductId())));
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -200,7 +200,7 @@ public class ProductService {
         try {
             telegramReceiveAndPost.sendPhotoMessage(product.getImageUrl(),
                     formatter.formatMessage(product,
-                            urlService.coinUrl(product.getProductId())));
+                            urlService.createCoinUrl(product.getProductId())));
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

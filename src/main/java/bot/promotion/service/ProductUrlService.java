@@ -1,5 +1,6 @@
 package bot.promotion.service;
 
+import bot.promotion.client.AffiliateLink;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,15 +16,15 @@ import java.util.regex.Pattern;
 public class ProductUrlService {
     private static final Pattern PRODUCT_URL_PATTERN = Pattern.compile("/(?:item/)?(\\d+)\\.html");
     private static final Pattern PRODUCT_ID_PATTERN_TWO = Pattern.compile("[?&]productIds=(\\d+)");
-    private final AffiliateService affiliateService;
+    private final AffiliateLink affiliateLink;
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.ALWAYS) // Segue redirecionamentos
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
     @Autowired
-    public ProductUrlService(AffiliateService affiliateService) {
-        this.affiliateService = affiliateService;
+    public ProductUrlService(AffiliateLink affiliateLink) {
+        this.affiliateLink = affiliateLink;
     }
 
     public String processUrlAndExtractId(String shortUrl) {
@@ -64,8 +65,8 @@ public class ProductUrlService {
         return null;
     }
 
-    public String coinUrl(String productId) {
+    public String createCoinUrl(String productId) {
         if (productId == null) throw new IllegalArgumentException("productId is null");
-        return affiliateService.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId);
+        return affiliateLink.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId);
     }
 }
