@@ -20,8 +20,58 @@ public class SkuProductInfo {
         this.objectMapper = objectMapper;
     }
 
-    public SkuProductResponse getSkuProduct(String productId, String skuID) {
+    public SkuProductResponse getSkuProduct(String productId, String skuId) {
+        IopRequest request = getIopRequest(productId, skuId);
 
+        safeSleep(5000);
+        IopResponse responseApi = executeRequest(request);
+
+        if (!responseIsValid(responseApi)) {
+            System.out.println("First attempt failed, retrying");
+            safeSleep(7000);
+            responseApi = executeRequest(request);
+        }
+
+        if (responseIsValid(responseApi)) {
+            return parseResponse(responseApi);
+        }
+        System.out.println("Failed to fetch SKU product details after retrying.");
+        return null;
+    }
+
+    private boolean responseIsValid(IopResponse response) {
+        return response != null && response.isSuccess();
+    }
+
+    private SkuProductResponse parseResponse(IopResponse responseApi) {
+        try {
+            String jsonBody = responseApi.getGopResponseBody();
+            return objectMapper.readValue(jsonBody, SkuProductResponse.class);
+        } catch (Exception e) {
+            System.out.println("Error parsing SKU product response in line 59: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void safeSleep(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread was interrupted during sleep: " + e.getMessage());
+        }
+    }
+
+    private IopResponse executeRequest(IopRequest request) {
+        try {
+            return iopClient.execute(request, Protocol.TOP);
+        } catch (ApiException e) {
+            System.out.println("Error executing API request in line 64: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private IopRequest getIopRequest(String productId, String skuId) {
         IopRequest request = new IopRequest();
         request.setApiName("aliexpress.affiliate.product.sku.detail.get");
         request.addApiParameter("ship_to_country", "BR");
@@ -29,39 +79,7 @@ public class SkuProductInfo {
         request.addApiParameter("target_currency", "BRL");
         request.addApiParameter("target_language", "EN");
         request.addApiParameter("need_deliver_info", "Yes");
-        request.addApiParameter("sku_ids", skuID);
-
-        try {
-            Thread.sleep(5000);
-            IopResponse response = iopClient.execute(request, Protocol.TOP);
-            if (!response.isSuccess()) {
-                try {
-                    Thread.sleep(7000);
-                    response = iopClient.execute(request, Protocol.TOP);
-                    if (!response.isSuccess()) {
-                        System.out.println("Error answer from API is null in line 41");
-                        return null;
-                    }
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    System.out.println("Thread was interrupted during getSkuProduct retry");
-                    return null;
-                } catch (ApiException e) {
-                    System.out.println("Error get SKU product in line 49 on getSkuProduct on second try: " + e.getMessage());
-                    return null;
-                } catch (Exception e) {
-                    System.out.println("Unexpected error in line 52 on getSkuProduct on second try: " + e.getMessage());
-                    return null;
-                }
-            }
-            String jsonBody = response.getGopResponseBody();
-            return objectMapper.readValue(jsonBody, SkuProductResponse.class);
-        } catch (ApiException e) {
-            System.out.println("Error get SKU product in line 59 on getSkuProduct: " + e.getMessage());
-            return null;
-        } catch (Exception e) {
-            System.out.println("Unexpected error in line 62 on getSkuProduct: " + e.getMessage());
-            return null;
-        }
+        request.addApiParameter("sku_ids", skuId);
+        return request;
     }
 }
