@@ -40,42 +40,21 @@ public class FetchProductDetail {
             System.out.println("Access token is null in line 40");
             return null;
         }
-
         AliexpressAffiliateProductdetailGetRequest request = getProductDetailRequest(productId);
 
-        try {
-            Thread.sleep(3000);
-            AliexpressAffiliateProductdetailGetResponse responseApi = iopClient.execute(request, accessToken);
-            if (!responseApi.isSuccess()) {
-                try {
-                    Thread.sleep(5000);
-                    responseApi = iopClient.execute(request, accessToken);
-                    if (!responseApi.isSuccess()) {
-                        System.out.println("Error answer from API is null in line 50 on second attempt");
-                        return null;
-                    }
-                } catch (InterruptedException e) {
-                    System.out.println("Thread was interrupted during fetch product detail in line 58 on second attempt: " + e.getMessage());
-                    return null;
-                } catch (ApiException e) {
-                    System.out.println("Error get hot products in line 61 on getHotProduct on second attempt" + e.getMessage());
-                    return null;
-                } catch (Exception e) {
-                    System.out.println("Error get hot products in line 64 on getHotProduct on second attempt" + e.getMessage());
-                    return null;
-                }
-            }
-
-            String jsonBody = responseApi.getGopResponseBody();
-            return objectMapper.readValue(jsonBody, HotProductResponse.class);
-
-        } catch (ApiException e) {
-            System.out.println("Error get hot products in line 73 on getHotProduct" + e.getMessage());
-            return null;
-        } catch (Exception e) {
-            System.out.println("Error get hot products in line 76 on getHotProduct" + e.getMessage());
-            return null;
+        safeSleep(3000); // Sleep for 3 seconds before making the request
+        AliexpressAffiliateProductdetailGetResponse responseApi = executeRequest(request, accessToken);
+        if (!responseIsValid(responseApi)) {
+            System.out.println("First attempt failed, retrying");
+            safeSleep(5000); // Sleep for 5 seconds before retrying
+            responseApi = executeRequest(request, accessToken);
         }
+
+        if (responseIsValid(responseApi)) {
+            return parseResponse(responseApi);
+        }
+        System.out.println("Failed to fetch product details after retrying.");
+        return null;
     }
 
     private synchronized String getValidAccessToken() {
@@ -89,7 +68,7 @@ public class FetchProductDetail {
                 }
 
                 if (tokenDB.get().getAccessToken() == null) {
-                    System.out.println("Access token is null in line 92");
+                    System.out.println("Access token is null in line 71");
                     return null;
                 }
 
@@ -102,6 +81,38 @@ public class FetchProductDetail {
         }
 
         return this.cachedAccessToken;
+    }
+
+    private void safeSleep(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread was interrupted during sleep: " + e.getMessage());
+        }
+    }
+
+    private boolean responseIsValid(AliexpressAffiliateProductdetailGetResponse response) {
+        return response != null && response.isSuccess();
+    }
+
+    private HotProductResponse parseResponse(AliexpressAffiliateProductdetailGetResponse response) {
+        try {
+            String jsonBody = response.getGopResponseBody();
+            return objectMapper.readValue(jsonBody, HotProductResponse.class);
+        } catch (Exception e) {
+            System.out.println("Error parsing JSON response: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private AliexpressAffiliateProductdetailGetResponse executeRequest(AliexpressAffiliateProductdetailGetRequest request, String accessToken) {
+        try {
+            return iopClient.execute(request, accessToken);
+        } catch (ApiException e) {
+            System.out.println("Error executing API request in line 113: " + e.getMessage());
+            return null;
+        }
     }
 
     private AliexpressAffiliateProductdetailGetRequest getProductDetailRequest(String productId) {
