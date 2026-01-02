@@ -3,6 +3,7 @@ package bot.promotion.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +20,10 @@ public class ProductVariant {
 
     @Column(nullable = false)
     private String skuId;
+
     private String skuProperties;
+    // Average price of 30 days
+    private BigDecimal averagePrice;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
