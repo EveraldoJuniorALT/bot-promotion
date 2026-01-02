@@ -48,7 +48,7 @@ public class ProductUrlService {
         }
     }
 
-    public String extractProductId(String url) {
+    private String extractProductId(String url) {
         if (url == null) return null;
 
         Matcher matcherOne = PRODUCT_URL_PATTERN.matcher(url);

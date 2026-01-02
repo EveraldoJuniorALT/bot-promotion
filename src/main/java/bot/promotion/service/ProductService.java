@@ -109,11 +109,12 @@ public class ProductService {
     private void fetchSkuInfo(List<HotProduct> allProducts) {
         for (HotProduct product : allProducts) {
             try {
-                SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId(), product.getSkuId());
+                SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId());
                 if (skuInfo != null &&
                         skuInfo.getRespResult() != null &&
                         skuInfo.getRespResult().getResult() != null &&
-                        skuInfo.getRespResult().getResult().getSkuProductsList() != null) {
+                        skuInfo.getRespResult().getResult().getSkuProductsList() != null &&
+                        !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
 
                     List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
                     skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());

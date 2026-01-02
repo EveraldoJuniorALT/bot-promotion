@@ -20,8 +20,8 @@ public class SkuProductInfo {
         this.objectMapper = objectMapper;
     }
 
-    public SkuProductResponse getSkuProduct(String productId, String skuId) {
-        IopRequest request = getIopRequest(productId, skuId);
+    public SkuProductResponse getSkuProduct(String productId) {
+        IopRequest request = getIopRequest(productId);
 
         safeSleep(5000);
         IopResponse responseApi = executeRequest(request);
@@ -71,7 +71,7 @@ public class SkuProductInfo {
         }
     }
 
-    private IopRequest getIopRequest(String productId, String skuId) {
+    private IopRequest getIopRequest(String productId) {
         IopRequest request = new IopRequest();
         request.setApiName("aliexpress.affiliate.product.sku.detail.get");
         request.addApiParameter("ship_to_country", "BR");
@@ -79,7 +79,6 @@ public class SkuProductInfo {
         request.addApiParameter("target_currency", "BRL");
         request.addApiParameter("target_language", "EN");
         request.addApiParameter("need_deliver_info", "Yes");
-        request.addApiParameter("sku_ids", skuId);
         return request;
     }
 }
