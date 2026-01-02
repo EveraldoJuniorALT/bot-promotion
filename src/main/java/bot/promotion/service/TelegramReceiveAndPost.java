@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 @Component
 public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Getter
-    @Value("${telegram.bot.username}")
+    @Value("${telegram.bot.name}")
     private String botUserName;
 
     @Value("${telegram.bot.chat-id}")
@@ -29,7 +29,9 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     private static final Pattern URL_PATTERN = Pattern.compile("\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
 
     @Autowired
-    public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken, ProductUrlService productUrlService, ProductTelegramService productTelegramService) {
+    public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken,
+                                  ProductUrlService productUrlService,
+                                  ProductTelegramService productTelegramService) {
         super(botToken);
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
@@ -55,19 +57,6 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
-    public void sendPhotoMessage(String photoUrl, String caption) {
-        SendPhoto sendPhoto = new SendPhoto();
-        sendPhoto.setParseMode(ParseMode.HTML);
-        sendPhoto.setChatId(chatId);
-        sendPhoto.setPhoto(new InputFile(photoUrl));
-        sendPhoto.setCaption(caption);
-        try {
-            execute(sendPhoto);
-        } catch (TelegramApiException e) {
-            System.out.println("Error sending photo message: " + e.getMessage());
-        }
-    }
-
     private void processMessageReceived(String messageText) {
         String productUrl = findUrlInText(messageText);
         if (productUrl == null) {
@@ -75,7 +64,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
 
         if (messageText.startsWith("/save")) {
-            processSaveCommand(messageText, productUrl);
+            processSaveCommand(messageText);
             return;
         }
 
@@ -84,15 +73,14 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
 
     private void processProductUrl(String url) {
         String productId = productUrlService.processUrlAndExtractId(url);
+        if (productId == null) return;
         productTelegramService.sendProductInfo(productId);
     }
 
-    private void processSaveCommand(String command, String productUrl) {
+    private void processSaveCommand(String command) {
         String[] parts = command.split("\\s+", 2);
-        if (parts.length < 2) {
-            return;
-        }
-        // I will implement saving functionality here in the future
+        if (parts.length < 2) return;
+        productTelegramService.processProductUrl(parts[1]);
     }
 
     private void deleteUserMessage(Integer messageId) {
@@ -112,6 +100,19 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
             return matcher.group(1);
         }
         return null;
+    }
+
+    public void sendPhotoMessage(String photoUrl, String caption) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setParseMode(ParseMode.HTML);
+        sendPhoto.setChatId(chatId);
+        sendPhoto.setPhoto(new InputFile(photoUrl));
+        sendPhoto.setCaption(caption);
+        try {
+            execute(sendPhoto);
+        } catch (TelegramApiException e) {
+            System.out.println("Error sending photo message: " + e.getMessage());
+        }
     }
 
 }
