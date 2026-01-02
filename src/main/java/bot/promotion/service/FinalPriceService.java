@@ -92,6 +92,31 @@ public class FinalPriceService {
         return finalPrice.setScale(2, RoundingMode.HALF_UP).toString();
     }
 
+    public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
+        BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, extraDiscountCoins);
+
+        if (product.getOriginalCurrency().equals("BRL")) {
+            return afterDiscount.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal limiteUSD = new BigDecimal("50.00");
+        BigDecimal cotacaoAtual = new BigDecimal(cotacao.getCachedCotacao());
+        BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
+
+        if (afterDiscount.compareTo(limiteBRL) <= 0) {
+            BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
+            BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
+            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+            return finalPrice.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
+        BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
+        BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+
+        return finalPrice.setScale(2, RoundingMode.HALF_UP);
+    }
+
     /*
      * With skuProduct info I can get a more precise coupon list
      * since the skuProduct contains info about the product models
@@ -154,15 +179,22 @@ public class FinalPriceService {
             discountedProductValue = discountedProductValue.add(shippingFees);
         }
 
-        String extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
-        if (extraDiscountCoins == null) return discountedProductValue;
+        /*
+         * We guarantee a second attempt to obtain the extra discount coins percentage
+         * before returning the value without coin discount
+         */
+        BigDecimal extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) {
+            extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        }
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
+
         try {
-            BigDecimal discountCoins = new BigDecimal(extraDiscountCoins);
-            BigDecimal discountValueCoin = valueProduct.multiply(discountCoins)
+            BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
             return discountedProductValue.subtract(discountValueCoin);
-        } catch (NumberFormatException e) {
+        } catch (ArithmeticException e) {
             System.out.println("Error calculate coin discount: " + e.getMessage());
             return discountedProductValue;
         }
@@ -191,15 +223,64 @@ public class FinalPriceService {
             discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
         }
 
-        String extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
-        if (extraDiscountCoins == null) return discountedProductValue;
+        /*
+         * We guarantee a second attempt to obtain the extra discount coins percentage
+         * before returning the value without coin discount
+         */
+        BigDecimal extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        if (extraDiscountCoins == null) {
+            extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
+        }
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
+
         try {
-            BigDecimal discountCoins = new BigDecimal(extraDiscountCoins);
-            BigDecimal discountValueCoin = valueProduct.multiply(discountCoins)
+            BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
             return discountedProductValue.subtract(discountValueCoin);
-        } catch (NumberFormatException e) {
+        } catch (ArithmeticException e) {
+            System.out.println("Error calculate coin discount: " + e.getMessage());
+            return discountedProductValue;
+        }
+    }
+
+    private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
+
+        BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
+        double valuePromotionCode = 0.0;
+        if (product.getPromotionCode() != null && product.getPromotionCode().getCodeValue() != null) {
+            Matcher matcher = VALUE_PROMO_CODE.matcher(product.getPromotionCode().getCodeValue());
+            if (matcher.find()) {
+                String codeValue = matcher.group(1);
+                valuePromotionCode = Double.parseDouble(codeValue);
+            }
+        }
+
+        List<Coupon> couponsAvailable = couponListAvailable(skuProduct);
+        Optional<Coupon> coupons = couponsAvailable.stream()
+                .max(Comparator.comparing(Coupon::getDiscount));
+
+        BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
+
+        if (coupons.isPresent()) {
+            discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
+        }
+
+        if (skuProduct.getShippingFees() != null && !skuProduct.getShippingFees().isBlank()) {
+            BigDecimal shippingFees = new BigDecimal(skuProduct.getShippingFees());
+            discountedProductValue = discountedProductValue.add(shippingFees);
+        }
+        /*
+         * Returns the value without coin discount so the product can be published
+         * allowing me to correct ir manually
+         */
+        if (extraDiscountCoins == null) return discountedProductValue;
+        try {
+            BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            return discountedProductValue.subtract(discountValueCoin);
+        } catch (ArithmeticException e) {
             System.out.println("Error calculate coin discount: " + e.getMessage());
             return discountedProductValue;
         }

@@ -45,7 +45,7 @@ public class FetchProductDetail {
         safeSleep(3000); // Sleep for 3 seconds before making the request
         AliexpressAffiliateProductdetailGetResponse responseApi = executeRequest(request, accessToken);
         if (!responseIsValid(responseApi)) {
-            System.out.println("First attempt failed, retrying");
+            System.out.println("First attempt failed, retrying on fetchProductDetail");
             safeSleep(5000); // Sleep for 5 seconds before retrying
             responseApi = executeRequest(request, accessToken);
         }
