@@ -16,6 +16,9 @@ public class SkuProduct {
     @JsonProperty("sale_price_with_tax")
     private String salePrice;
 
+    @JsonProperty("sku_id")
+    private String skuId;
+
     @JsonProperty("sku_image_link")
     private String skuImage;
 
