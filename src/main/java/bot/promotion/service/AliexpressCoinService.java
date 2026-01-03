@@ -8,6 +8,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,8 +23,8 @@ public class AliexpressCoinService {
         this.driverManager = driverManager;
     }
 
-    public String processLink(String link) {
-        String coinPercentage = executeProcess(link);
+    public BigDecimal processLink(String link) {
+        BigDecimal coinPercentage = executeProcess(link);
         if (coinPercentage != null) {
             return coinPercentage;
         }
@@ -36,7 +37,7 @@ public class AliexpressCoinService {
         }
     }
 
-    private String executeProcess(String link) {
+    private BigDecimal executeProcess(String link) {
         AndroidDriver driver = driverManager.getDriver();
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
 
@@ -63,15 +64,15 @@ public class AliexpressCoinService {
         }
     }
 
-    private String extractExtraDiscount(WebDriverWait wait) {
+    private BigDecimal extractExtraDiscount(WebDriverWait wait) {
         try {
             WebElement elementExtra = wait.until(ExpectedConditions.visibilityOfElementLocated(
                     AppiumBy.accessibilityId("taxIcon")
             ));
-            String extraText = elementExtra.getText();
-            return clearText(extraText);
-        } catch (Exception e) {
-            System.out.println("No extra discount found." + e.getMessage());
+            String clearText = clearText(elementExtra.getText());
+            return clearText != null ? new BigDecimal(clearText) : null;
+        } catch (NumberFormatException e) {
+            System.out.println("No extra discount found or invalid format for BigDecimal." + e.getMessage());
             return null;
         }
     }
