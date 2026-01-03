@@ -3,6 +3,7 @@ package bot.promotion.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +23,7 @@ public class Product {
     private String productId;
     private LocalDateTime lastPostedOn;
     private String affiliateLink;
-    private Double DiscountCoinValue;
+    private BigDecimal DiscountCoinValue;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ProductVariant> variants = new ArrayList<>();
