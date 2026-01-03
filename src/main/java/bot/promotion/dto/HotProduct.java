@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HotProduct {
-    @JsonProperty("target_original_price_currency")
+    @JsonProperty("original_price_currency")
     private String originalCurrency;
 
     @JsonProperty("sku_id")
