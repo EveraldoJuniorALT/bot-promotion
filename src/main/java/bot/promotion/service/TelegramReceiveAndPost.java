@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
@@ -102,16 +103,27 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         return null;
     }
 
-    public void sendPhotoMessage(String photoUrl, String caption) {
+    public void sendPhotoMessage(String photoUrl, String text) {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setParseMode(ParseMode.HTML);
         sendPhoto.setChatId(chatId);
         sendPhoto.setPhoto(new InputFile(photoUrl));
-        sendPhoto.setCaption(caption);
+        sendPhoto.setCaption(text);
         try {
             execute(sendPhoto);
         } catch (TelegramApiException e) {
             System.out.println("Error sending photo message: " + e.getMessage());
+        }
+    }
+
+    public void sendTextMessage(String text) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(text);
+        try {
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            System.out.println("Error sending text message: " + e.getMessage());
         }
     }
 
