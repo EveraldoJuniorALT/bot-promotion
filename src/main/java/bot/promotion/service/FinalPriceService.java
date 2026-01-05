@@ -274,7 +274,7 @@ public class FinalPriceService {
          * Returns the value without coin discount so the product can be published
          * allowing me to correct ir manually
          */
-        if (extraDiscountCoins == null) return discountedProductValue;
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
         try {
             BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);

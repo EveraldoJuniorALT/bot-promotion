@@ -8,10 +8,10 @@ import bot.promotion.model.Product;
 import bot.promotion.model.ProductVariant;
 import bot.promotion.repository.PriceHistoryRepository;
 import bot.promotion.repository.ProductRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,6 +31,7 @@ public class ProductTelegramService {
     private final ProductRepository productRepository;
     private final AliexpressCoinService coinService;
     private final FinalPriceService finalPriceService;
+    private final TransactionTemplate transactionTemplate;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -44,7 +45,8 @@ public class ProductTelegramService {
     @Autowired
     public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost,
                                   TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService, ProductRepository productRepository,
-                                  AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, PriceHistoryRepository priceHistoryRepository) {
+                                  AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, TransactionTemplate transactionTemplate,
+                                  PriceHistoryRepository priceHistoryRepository) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
@@ -53,17 +55,25 @@ public class ProductTelegramService {
         this.productRepository = productRepository;
         this.coinService = aliexpressCoinService;
         this.finalPriceService = finalPriceService;
+        this.transactionTemplate = transactionTemplate;
         this.priceHistoryRepository = priceHistoryRepository;
     }
 
-    @Transactional
     public void processProductUrl(String productUrl) {
         String productId = urlService.processUrlAndExtractId(productUrl);
         if (productId == null || productId.isBlank()) {
             System.out.println("It was not possible to extract the ID from the URL: " + productUrl);
             return;
         }
+        createParameters(productId, false);
+    }
 
+    //With boolean expression "shouldPublish", I can choose if I want to publish the product or just save it to the database.
+    public void sendProductInfo(String productId) {
+        createParameters(productId, true);
+    }
+
+    private void createParameters(String productId, boolean shouldPublish) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
             System.out.println("Couldn't be saved because no product detail found for product ID: " + productId);
@@ -85,34 +95,65 @@ public class ProductTelegramService {
             System.out.println("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
             return;
         }
+
+        if (shouldPublish) {
+            publishAndUpdateProduct(productId, affiliateLink, coinPercentageDiscount, productDetail);
+            return;
+        }
         createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
     }
 
     private void createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
-        Product product = createProductEntity(productId, affiliateLink, coinPercentageDiscount);
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
-
         if (skusToProcess.isEmpty()) {
             System.out.println("No SKU to process for product ID: " + productId);
             return;
         }
 
-        for (SkuProduct sku : skusToProcess) {
-            ProductVariant variant = createProductVariantEntity(product, sku);
-            variant.setSkuProperties(sku.getSkuProperties());
+        try {
+            Product product = createProductEntity(productId, affiliateLink, coinPercentageDiscount);
+            forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
-            BigDecimal finalPrice = finalPriceService.calculateFinalPrice(productDetail, sku, coinPercentageDiscount);
-            PriceHistory priceHistory = new PriceHistory();
-            priceHistory.setPrice(finalPrice);
-            priceHistory.setCapturedDate(LocalDateTime.now());
-
-            variant.addPriceHistory(priceHistory);
-            if (!product.getVariants().contains(variant)) {
-                product.addVariant(variant);
-            }
+            transactionTemplate.execute(status -> {
+                productRepository.save(product);
+                updateAveragesForVariant(product);
+                return null;
+            });
+        } catch (Exception e) {
+            System.out.println("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
+            System.out.println("Reason: " + e.getMessage());
         }
-        productRepository.save(product);
-        updateAveragesForVariant(product);
+    }
+
+    private void publishAndUpdateProduct(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
+        List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
+        if (skusToProcess.isEmpty()) return;
+
+        chooseBestProduct(productDetail, skusToProcess, affiliateLink, coinPercentageDiscount);
+
+        try {
+            transactionTemplate.execute(status -> {
+
+                Optional<Product> productOptional = productRepository.findByProductId(productId);
+                if (productOptional.isEmpty()) {
+                    telegramReceiveAndPost.sendTextMessage("Product with ID " + productId + " not found in the database to update after publishing.");
+                    return null;
+                }
+                Product product = productOptional.get();
+                // Update the fields to always have the last published affiliate link and coin discount
+                product.setAffiliateLink(affiliateLink);
+                product.setDiscountCoinValue(coinPercentageDiscount);
+                product.setLastPostedOn(LocalDateTime.now());
+                forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
+
+                productRepository.save(product);
+                updateAveragesForVariant(product);
+                return null;
+            });
+        } catch (Exception e) {
+            System.out.println("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
+            System.out.println("Reason: " + e.getMessage());
+        }
     }
 
     private Product createProductEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount) {
@@ -150,8 +191,27 @@ public class ProductTelegramService {
         SkuProduct sku = new SkuProduct();
         sku.setSkuId(productDetail.getSkuId());
         sku.setSalePrice(productDetail.getSalePriceApp());
+        sku.setSkuImage(productDetail.getImageUrl());
+        sku.setModelo("default");
         sku.setSkuProperties("default");
         return List.of(sku);
+    }
+
+    private void forEachVariant(HotProduct productDetail, List<SkuProduct> skusToProcess, Product product, BigDecimal coinPercentageDiscount) {
+        for (SkuProduct sku : skusToProcess) {
+            ProductVariant variant = createProductVariantEntity(product, sku);
+            variant.setSkuProperties(sku.getSkuProperties());
+
+            BigDecimal finalPrice = finalPriceService.calculateFinalPrice(productDetail, sku, coinPercentageDiscount);
+            PriceHistory priceHistory = new PriceHistory();
+            priceHistory.setPrice(finalPrice);
+            priceHistory.setCapturedDate(LocalDateTime.now());
+
+            variant.addPriceHistory(priceHistory);
+            if (!product.getVariants().contains(variant)) {
+                product.addVariant(variant);
+            }
+        }
     }
 
     private void updateAveragesForVariant(Product product) {
@@ -166,23 +226,6 @@ public class ProductTelegramService {
             }
         }
         productRepository.save(product);
-    }
-
-    public void sendProductInfo(String productId) {
-        HotProduct productDetail = processToFetchProductDetail(productId);
-        if (productDetail == null) return;
-
-        List<SkuProduct> skuProductsList = processToFetchProductSku(productId);
-
-        if (skuProductsList == null || skuProductsList.isEmpty()) {
-            publishProduct(productDetail);
-            return;
-        }
-        /*
-         * If Sku information is returned about the product, we publish the product with more information
-         * otherwise, only the information obtained previously is published.
-         */
-        chooseBestProduct(productDetail, skuProductsList);
     }
 
     private HotProduct processToFetchProductDetail(String productId) {
@@ -212,9 +255,8 @@ public class ProductTelegramService {
         return null;
     }
 
-    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts) {
+    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, String affiliateLink, BigDecimal coinPercentageDiscount) {
         if (skuAllProducts.isEmpty()) return;
-
 
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
@@ -227,27 +269,12 @@ public class ProductTelegramService {
                 .map(Optional::get)
                 .toList();
 
-        if (cheapestByGroup.size() == 1) {
-            publishProduct(productDetail, cheapestByGroup.getFirst());
-            return;
-        }
-
-        String firstPrice = cheapestByGroup.getFirst().getSalePrice();
-        boolean allSamePrice = cheapestByGroup.stream().allMatch(SkuProduct -> Objects.equals(firstPrice, SkuProduct.getSalePrice()));
-
-        if (allSamePrice) {
-            publishProduct(productDetail, cheapestByGroup.getFirst());
-            return;
-        }
-
-        for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
-            sku.ifPresent(skuProduct -> publishProduct(productDetail, skuProduct));
-        }
+        publishProduct(productDetail, cheapestByGroup.getFirst(), affiliateLink, coinPercentageDiscount);
     }
 
     private String simplifiedGroupkey(String title) {
         if (title == null || title.isBlank()) {
-            return "unknown"; // I still don't know to solve this case
+            return "unknown";
         }
         Matcher matcher = FIRST_WORD_PATTERN.matcher(title);
         if (!matcher.find()) {
@@ -261,28 +288,10 @@ public class ProductTelegramService {
         return titleFormated;
     }
 
-    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct) {
+    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, String affiliateLink, BigDecimal coinPercentageDiscount) {
         try {
             telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                    formatter.formatMessage(productDetail, skuProduct,
-                            urlService.createCoinUrl(productDetail.getProductId())));
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during publishing product");
-        }
-    }
-
-    /*
-     * Yes, I know there`s of duplicate code here.
-     * I`ll refactor it soon.
-     * But, for now, I need to deliver the feature.
-     */
-    private void publishProduct(HotProduct productDetail) {
-        try {
-            telegramReceiveAndPost.sendPhotoMessage(productDetail.getImageUrl(),
-                    formatter.formatMessage(productDetail,
-                            urlService.createCoinUrl(productDetail.getProductId())));
+                    formatter.formatMessage(productDetail, skuProduct, affiliateLink, coinPercentageDiscount));
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
