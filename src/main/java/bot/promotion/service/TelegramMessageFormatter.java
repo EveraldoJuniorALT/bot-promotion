@@ -6,6 +6,7 @@ import bot.promotion.model.Coupon;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,11 +25,18 @@ public class TelegramMessageFormatter {
     * I`ll refactor it soon.
     * But, for now, I need to deliver the feature.
     */
-    public String formatMessage(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
+    public String formatMessage(HotProduct product, SkuProduct skuProduct, String affiliateLink, BigDecimal coinPercentageDiscount) {
+        String finalPrice = "";
+        if (coinPercentageDiscount == null) {
+            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLink));
+        }
+        if (coinPercentageDiscount != null) {
+            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount));
+        }
 
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
-        message.append("💰 Valor: ").append(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLink)).append("\n\n");
+        message.append("💰 Valor: R$ ").append(finalPrice).append("\n\n");
 
         List<Coupon> coupons = finalPriceService.couponListAvailable(skuProduct);
         boolean hasPromoCode = product.getPromotionCode() != null && product.getPromotionCode().getCodePromotion() != null && !product.getPromotionCode().getCodePromotion().isBlank();
