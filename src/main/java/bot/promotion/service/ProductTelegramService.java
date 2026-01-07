@@ -59,12 +59,7 @@ public class ProductTelegramService {
         this.priceHistoryRepository = priceHistoryRepository;
     }
 
-    public void processProductUrl(String productUrl) {
-        String productId = urlService.processUrlAndExtractId(productUrl);
-        if (productId == null || productId.isBlank()) {
-            System.out.println("It was not possible to extract the ID from the URL: " + productUrl);
-            return;
-        }
+    public void processSaveProductUrl(String productId) {
         createParameters(productId, false);
     }
 
@@ -106,15 +101,15 @@ public class ProductTelegramService {
     private void createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
-            System.out.println("No SKU to process for product ID: " + productId);
+            System.out.println("No SKU to process for product ID in line 104: " + productId);
             return;
         }
 
         try {
-            Product product = createProductEntity(productId, affiliateLink, coinPercentageDiscount);
-            forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
-
             transactionTemplate.execute(status -> {
+                Product product = createProductEntity(productId, affiliateLink, coinPercentageDiscount);
+                forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
+
                 productRepository.save(product);
                 updateAveragesForVariant(product);
                 return null;
@@ -127,7 +122,10 @@ public class ProductTelegramService {
 
     private void publishAndUpdateProduct(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
-        if (skusToProcess.isEmpty()) return;
+        if (skusToProcess.isEmpty()) {
+            System.out.println("No SKU to process for product ID in line 126: " + productId);
+            return;
+        }
 
         chooseBestProduct(productDetail, skusToProcess, affiliateLink, coinPercentageDiscount);
 
@@ -184,7 +182,16 @@ public class ProductTelegramService {
 
     private List<SkuProduct> getOrBuildSku(HotProduct productDetail) {
         List<SkuProduct> skuProducts = processToFetchProductSku(productDetail.getProductId());
-        if (skuProducts != null && !skuProducts.isEmpty()) return skuProducts;
+        if (skuProducts != null && !skuProducts.isEmpty()) {
+            List<SkuProduct> filteredSkuProducts = new ArrayList<>();
+            for (SkuProduct skuProductToImage : skuProducts) {
+                if (skuProductToImage.getSkuImage() == null || skuProductToImage.getSkuImage().isBlank()) {
+                    skuProductToImage.setSkuImage(productDetail.getImageUrl());
+                    filteredSkuProducts.add(skuProductToImage);
+                }
+            }
+            return filteredSkuProducts.isEmpty() ? skuProducts : filteredSkuProducts;
+        }
 
         if (productDetail.getSkuId() == null || productDetail.getSkuId().isBlank()) return Collections.emptyList();
 
