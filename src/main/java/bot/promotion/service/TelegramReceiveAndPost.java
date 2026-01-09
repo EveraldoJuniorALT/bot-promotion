@@ -46,30 +46,30 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            Integer messageId = update.getMessage().getMessageId();
+            String productUrl = findUrlInText(update.getMessage().getText());
+            if (productUrl == null) {
+                return;
+            }
 
             try {
-                deleteUserMessage(messageId);
-                processMessageReceived(messageText);
+                processMessageReceived(update, productUrl);
             } catch (Exception e) {
                 System.out.println("Error processing received message: " + e.getMessage());
             }
         }
     }
 
-    private void processMessageReceived(String messageText) {
-        String productUrl = findUrlInText(messageText);
-        if (productUrl == null) {
+    private void processMessageReceived(Update update, String productUrl) {
+        deleteUserMessage(update.getMessage().getMessageId(), update.getMessage().getChatId());
+        if (update.getMessage().getText().startsWith("/save")) {
+            processSaveCommand(productUrl);
             return;
         }
 
-        if (messageText.startsWith("/save")) {
-            processSaveCommand(messageText);
-            return;
+        if (update.getMessage().getText().startsWith("/post")) {
+            processProductUrl(productUrl);
         }
-
-        processProductUrl(productUrl);
+        // I'll implement more logic here later
     }
 
     private void processProductUrl(String url) {
@@ -78,21 +78,10 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         productTelegramService.sendProductInfo(productId);
     }
 
-    private void processSaveCommand(String command) {
-        String[] parts = command.split("\\s+", 2);
-        if (parts.length < 2) return;
-        productTelegramService.processProductUrl(parts[1]);
-    }
-
-    private void deleteUserMessage(Integer messageId) {
-        DeleteMessage deleteMessage = new DeleteMessage();
-        deleteMessage.setChatId(chatId);
-        deleteMessage.setMessageId(messageId);
-        try {
-            execute(deleteMessage);
-        } catch (TelegramApiException e) {
-            System.out.println("Error deleting user message in line 75: " + e.getMessage());
-        }
+    private void processSaveCommand(String url) {
+        String productId = productUrlService.processUrlAndExtractId(url);
+        if (productId == null) return;
+        productTelegramService.processSaveProductUrl(productId);
     }
 
     private String findUrlInText(String text) {
@@ -101,6 +90,17 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
             return matcher.group(1);
         }
         return null;
+    }
+
+    private void deleteUserMessage(Integer messageId, Long chatIdFromMessage) {
+        DeleteMessage deleteMessage = new DeleteMessage();
+        deleteMessage.setChatId(chatIdFromMessage.toString());
+        deleteMessage.setMessageId(messageId);
+        try {
+            execute(deleteMessage);
+        } catch (TelegramApiException e) {
+            System.out.println("Error deleting user message in line 75: " + e.getMessage());
+        }
     }
 
     public void sendPhotoMessage(String photoUrl, String text) {
