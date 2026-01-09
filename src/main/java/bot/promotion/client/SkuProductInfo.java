@@ -48,7 +48,7 @@ public class SkuProductInfo {
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, SkuProductResponse.class);
         } catch (Exception e) {
-            System.out.println("Error parsing SKU product response in line 59: " + e.getMessage());
+            System.out.println("Error parsing SKU product response in line 51: " + e.getMessage());
             return null;
         }
     }
@@ -66,7 +66,7 @@ public class SkuProductInfo {
         try {
             return iopClient.execute(request, Protocol.TOP);
         } catch (ApiException e) {
-            System.out.println("Error executing API request in line 64: " + e.getMessage());
+            System.out.println("Error executing API request in line 69: " + e.getMessage());
             return null;
         }
     }

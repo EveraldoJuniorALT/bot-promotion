@@ -95,7 +95,7 @@ public class FinalPriceService {
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, extraDiscountCoins);
 
-        if (product.getOriginalCurrency().equals("BRL")) {
+        if (skuProduct.getShipFromCountry().equals("BR")) {
             return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 

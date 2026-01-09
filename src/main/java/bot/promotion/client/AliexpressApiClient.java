@@ -37,7 +37,7 @@ public class AliexpressApiClient {
     public HotProductResponse getHotProduct(int pageNo, String keyword) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            System.out.println("Access token is null in line 42");
+            System.out.println("Access token is null in line 40");
             return null;
         }
         AliexpressAffiliateHotproductQueryRequest request = getHotProductQueryRequest(pageNo, keyword);
@@ -68,7 +68,7 @@ public class AliexpressApiClient {
                 }
 
                 if (tokenDB.get().getAccessToken() == null) {
-                    System.out.println("Access token is null in line 80");
+                    System.out.println("Access token is null in line 71");
                     return null;
                 }
 
@@ -100,7 +100,7 @@ public class AliexpressApiClient {
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, HotProductResponse.class);
         } catch (Exception e) {
-            System.out.println("Error parsing JSON response in line 121: " + e.getMessage());
+            System.out.println("Error parsing JSON response in line 103: " + e.getMessage());
             return null;
         }
     }
@@ -109,7 +109,7 @@ public class AliexpressApiClient {
         try {
             return iopClient.execute(request, accessToken);
         } catch (ApiException e) {
-            System.out.println("Error executing API request in line 119: " + e.getMessage());
+            System.out.println("Error executing API request in line 112: " + e.getMessage());
             return null;
         }
     }
