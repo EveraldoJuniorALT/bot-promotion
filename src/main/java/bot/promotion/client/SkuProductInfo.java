@@ -7,10 +7,10 @@ import com.global.iop.api.IopRequest;
 import com.global.iop.api.IopResponse;
 import com.global.iop.domain.Protocol;
 import com.global.iop.util.ApiException;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 
-@Component
+@Service
 public class SkuProductInfo {
     private final IopClient iopClient;
     private final ObjectMapper objectMapper;

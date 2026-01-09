@@ -10,12 +10,12 @@ import com.global.iop.api.IopClient;
 import com.global.iop.util.ApiException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-@Component
+@Service
 public class FetchProductDetail {
     @Value("${aliexpress.app.tracking-id}")
     private String trackingId;
