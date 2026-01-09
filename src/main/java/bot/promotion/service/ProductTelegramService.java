@@ -60,15 +60,15 @@ public class ProductTelegramService {
     }
 
     public void processSaveProductUrl(String productId) {
-        createParameters(productId, false);
+        createParameters(productId, true);
     }
 
     //With boolean expression "shouldPublish", I can choose if I want to publish the product or just save it to the database.
     public void sendProductInfo(String productId) {
-        createParameters(productId, true);
+        createParameters(productId, false);
     }
 
-    private void createParameters(String productId, boolean shouldPublish) {
+    private void createParameters(String productId, boolean shouldSave) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
             System.out.println("Couldn't be saved because no product detail found for product ID: " + productId);
@@ -91,11 +91,10 @@ public class ProductTelegramService {
             return;
         }
 
-        if (shouldPublish) {
-            publishAndUpdateProduct(productId, affiliateLink, coinPercentageDiscount, productDetail);
-            return;
+        if (shouldSave) {
+            createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
         }
-        createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+        publishAndUpdateProduct(productId, affiliateLink, coinPercentageDiscount, productDetail);
     }
 
     private void createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
@@ -245,7 +244,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        System.out.println("No product detail found for product ID in line 97: " + productId);
+        System.out.println("No product detail found for product ID in line 247: " + productId);
         return null;
     }
 
