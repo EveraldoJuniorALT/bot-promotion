@@ -47,9 +47,9 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String productUrl = findUrlInText(update.getMessage().getText());
-            if (productUrl == null) {
-                return;
-            }
+            if (productUrl == null) return;
+
+            if (!productUrl.contains("aliexpress.com")) return;
 
             try {
                 processMessageReceived(update, productUrl);
@@ -68,8 +68,13 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
 
         if (update.getMessage().getText().startsWith("/post")) {
             processProductUrl(productUrl);
+            return;
         }
-        // I'll implement more logic here later
+
+        String productId = productUrlService.processUrlAndExtractId(productUrl);
+        if (productId == null) return;
+
+        sendTextMessage(productUrlService.createCoinUrl(productId));
     }
 
     private void processProductUrl(String url) {
