@@ -1,6 +1,7 @@
 package bot.promotion.service;
 
 import bot.promotion.client.FetchProductDetail;
+import bot.promotion.client.FetchShippingInfo;
 import bot.promotion.client.SkuProductInfo;
 import bot.promotion.dto.*;
 import bot.promotion.model.PriceHistory;
@@ -32,6 +33,8 @@ public class ProductTelegramService {
     private final AliexpressCoinService coinService;
     private final FinalPriceService finalPriceService;
     private final TransactionTemplate transactionTemplate;
+    private final PriceHistoryRepository priceHistoryRepository;
+    private final FetchShippingInfo shippingInfo;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -40,13 +43,12 @@ public class ProductTelegramService {
             "preto", "branco", "vermelho", "azul", "verde", "amarelo", "roxo", "rosa",
             "laranja", "marrom", "cinza", "prata", "dourado", "bege"
     );
-    private final PriceHistoryRepository priceHistoryRepository;
 
     @Autowired
     public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost,
                                   TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService, ProductRepository productRepository,
                                   AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, TransactionTemplate transactionTemplate,
-                                  PriceHistoryRepository priceHistoryRepository) {
+                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
@@ -57,6 +59,7 @@ public class ProductTelegramService {
         this.finalPriceService = finalPriceService;
         this.transactionTemplate = transactionTemplate;
         this.priceHistoryRepository = priceHistoryRepository;
+        this.shippingInfo = shippingInfo;
     }
 
     public void processSaveProductUrl(String productId) {
@@ -182,17 +185,22 @@ public class ProductTelegramService {
     private List<SkuProduct> getOrBuildSku(HotProduct productDetail) {
         List<SkuProduct> skuProducts = processToFetchProductSku(productDetail.getProductId());
         if (skuProducts != null && !skuProducts.isEmpty()) {
-            List<SkuProduct> filteredSkuProducts = new ArrayList<>();
-            for (SkuProduct skuProductToImage : skuProducts) {
-                if (skuProductToImage.getSkuImage() == null || skuProductToImage.getSkuImage().isBlank()) {
-                    skuProductToImage.setSkuImage(productDetail.getImageUrl());
-                    filteredSkuProducts.add(skuProductToImage);
+            skuProducts.forEach(skuProduct -> {
+                if (isImageMissing(skuProduct)) {
+                    skuProduct.setSkuImage(productDetail.getImageUrl());
                 }
-            }
-            return filteredSkuProducts.isEmpty() ? skuProducts : filteredSkuProducts;
+            });
+            return skuProducts;
         }
 
         if (productDetail.getSkuId() == null || productDetail.getSkuId().isBlank()) return Collections.emptyList();
+
+        SkuProduct sku = getSkuProduct(productDetail);
+        return List.of(sku);
+    }
+
+    private SkuProduct getSkuProduct(HotProduct productDetail) {
+        ShippingInfo shippingInfo = processToFetchShippingInfo(productDetail);
 
         SkuProduct sku = new SkuProduct();
         sku.setSkuId(productDetail.getSkuId());
@@ -200,7 +208,17 @@ public class ProductTelegramService {
         sku.setSkuImage(productDetail.getImageUrl());
         sku.setModelo("default");
         sku.setSkuProperties("default");
-        return List.of(sku);
+        if (shippingInfo != null && !shippingInfo.getShipFromCountry().isBlank()) {
+            sku.setShipFromCountry(shippingInfo.getShipFromCountry());
+        }
+        if (shippingInfo != null && !shippingInfo.getShippingFee().isBlank()) {
+            sku.setShippingFees(shippingInfo.getShippingFee());
+        }
+        return sku;
+    }
+
+    private boolean isImageMissing(SkuProduct sku) {
+        return sku.getSkuImage() == null || sku.getSkuImage().isBlank();
     }
 
     private void forEachVariant(HotProduct productDetail, List<SkuProduct> skusToProcess, Product product, BigDecimal coinPercentageDiscount) {
@@ -258,6 +276,17 @@ public class ProductTelegramService {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
         System.out.println("No Sku product info found for product ID: " + productId);
+        return null;
+    }
+
+    private ShippingInfo processToFetchShippingInfo(HotProduct productDetail) {
+        ShippingInfoResponse shippingResponse = shippingInfo.getShippingInfo(productDetail);
+        if (shippingResponse != null &&
+                shippingResponse.getRespResult() != null &&
+                shippingResponse.getRespResult().getShippingInfo() != null) {
+            return shippingResponse.getRespResult().getShippingInfo();
+        }
+        System.out.println("No shipping info found for product ID: " + productDetail.getProductId());
         return null;
     }
 
