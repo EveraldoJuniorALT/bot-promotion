@@ -87,6 +87,7 @@ public class AliexpressAuthService {
 
             if (!response.isSuccess()) {
                 System.out.println("Answer from API is null, access token not renewed. Line 89 ");
+                return;
             }
 
             String jsonBody = response.getGopResponseBody();
@@ -99,10 +100,10 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Ali API in line 102 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
+            System.err.println("Http error when calling Ali API in line 103 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
             System.err.println("Error response body: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            System.out.println("Error in line 105 on AliexpressAuthService.refreshToken" + e.getMessage());
+            System.out.println("Error in line 106 on AliexpressAuthService.refreshToken" + e.getMessage());
         }
     }
 }
