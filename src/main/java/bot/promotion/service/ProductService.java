@@ -53,12 +53,7 @@ public class ProductService {
             List<String> excludedModels = brands.getModelsExcluded();
 
             productsAfterFiltration.addAll(fetchProductsForKeyword(brand, acceptedModels, excludedModels));
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Thread was interrupted during brand processing");
-            }
+            safeSleep(5000);
         }
         processHotProducts(productsAfterFiltration);
     }
@@ -68,24 +63,17 @@ public class ProductService {
         int currentPage = 1;
 
         while (true) {
-            try {
-                HotProductResponse responseApi = apiClient.getHotProduct(currentPage, keyword);
-                if (responseApi == null ||
-                        responseApi.getRespResult() == null ||
-                        responseApi.getRespResult().getResult() == null ||
-                        responseApi.getRespResult().getResult().getProductsList() == null ||
-                        responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
-                    break;
-                }
-                allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
-                currentPage++;
-
-                Thread.sleep(4000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Thread was interrupted during paging");
+            HotProductResponse responseApi = apiClient.getHotProduct(currentPage, keyword);
+            if (responseApi == null ||
+                    responseApi.getRespResult() == null ||
+                    responseApi.getRespResult().getResult() == null ||
+                    responseApi.getRespResult().getResult().getProductsList() == null ||
+                    responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
                 break;
             }
+            allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
+            currentPage++;
+            safeSleep(4000);
         }
         filterAllProducts(allProducts, models, excludedModels);
         System.out.println("Total products after filtering: " + allProducts.size());
@@ -94,49 +82,38 @@ public class ProductService {
     }
 
     private void processHotProducts(List<HotProduct> products) {
-        if (products == null || products.isEmpty()) {
-            return;
-        }
+        if (products == null || products.isEmpty()) return;
 
         List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(products);
 
         if (!processedProducts.isEmpty()) {
             fetchSkuInfo(processedProducts);
         }
-
     }
 
     private void fetchSkuInfo(List<HotProduct> allProducts) {
         for (HotProduct product : allProducts) {
-            try {
-                SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId());
-                if (skuInfo != null &&
-                        skuInfo.getRespResult() != null &&
-                        skuInfo.getRespResult().getResult() != null &&
-                        skuInfo.getRespResult().getResult().getSkuProductsList() != null &&
-                        !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
+            SkuProductResponse skuInfo = skuProductInfo.getSkuProduct(product.getProductId());
+            if (skuInfo != null &&
+                    skuInfo.getRespResult() != null &&
+                    skuInfo.getRespResult().getResult() != null &&
+                    skuInfo.getRespResult().getResult().getSkuProductsList() != null &&
+                    !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
 
-                    List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
-                    skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
+                List<SkuProduct> skuAllProducts = skuInfo.getRespResult().getResult().getSkuProductsList();
+                skuAllProducts.removeIf(skuproduct -> skuproduct.getSkuImage() == null || skuproduct.getSkuImage().isBlank());
 
-                    chooseBestProduct(product, skuAllProducts);
-                    Thread.sleep(10000);
-                    continue;
-                }
-                publishProduct(product);
-
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Thread was interrupted during fetching SKU info");
+                chooseBestProduct(product, skuAllProducts);
+                safeSleep(10000);
+                continue;
             }
+            publishProduct(product);
+            safeSleep(5000);
         }
     }
 
     private void chooseBestProduct(HotProduct product, List<SkuProduct> skuAllProducts) {
-        if (skuAllProducts.isEmpty()) {
-            return;
-        }
+        if (skuAllProducts.isEmpty()) return;
 
         if (skuAllProducts.size() == 1) {
             publishProduct(product, skuAllProducts.getFirst());
@@ -185,29 +162,26 @@ public class ProductService {
     }
 
     private void publishProduct(HotProduct product, SkuProduct skuProduct) {
-        try {
-            telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                    formatter.formatMessage(product, skuProduct,
-                            urlService.createCoinUrl(product.getProductId()), null));
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during publishing product");
-        }
+        telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
+                formatter.formatMessage(product, skuProduct,
+                        urlService.createCoinUrl(product.getProductId()), null));
 
     }
 
     private void publishProduct(HotProduct product) {
+        telegramReceiveAndPost.sendPhotoMessage(product.getImageUrl(),
+                formatter.formatMessage(product,
+                        urlService.createCoinUrl(product.getProductId())));
+
+    }
+
+    private void safeSleep(int milliseconds) {
         try {
-            telegramReceiveAndPost.sendPhotoMessage(product.getImageUrl(),
-                    formatter.formatMessage(product,
-                            urlService.createCoinUrl(product.getProductId())));
-            Thread.sleep(2000);
+            Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during publishing product");
+            System.out.println("Thread was interrupted during sleep");
         }
-
     }
 
     private void filterAllProducts(List<HotProduct> products, List<String> models, List<String> excludedModels) {
