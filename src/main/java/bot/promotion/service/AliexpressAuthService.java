@@ -1,7 +1,7 @@
 package bot.promotion.service;
 
 import bot.promotion.dto.TokenResponse;
-import bot.promotion.model.Token;
+import bot.promotion.entity.Token;
 import bot.promotion.repository.TokenRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;

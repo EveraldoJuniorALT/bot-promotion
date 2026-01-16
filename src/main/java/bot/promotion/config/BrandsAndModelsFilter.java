@@ -13,8 +13,8 @@ public class BrandsAndModelsFilter {
     public List<BrandAndModel> getBrandsAndModels() {
         return List.of(
                 new BrandAndModel("delux", List.of("m900", "m800"), List.of("receptor", "receiver")),
-                new BrandAndModel("aula", List.of("f87", "f75", "hero", "win", "ag", "sc680", "mini"), List.of("keycap", "conjunto", "dungle")),
                 new BrandAndModel("netac", List.of("sata"), List.of()),
+                new BrandAndModel("aula", List.of("f87", "f75", "hero", "win", "ag", "sc680", "mini"), List.of("keycap", "conjunto", "dungle", "estabilizador")),
                 new BrandAndModel("arzopa", List.of("arzopa"), List.of("protetora", "protetor", "filme")),
                 new BrandAndModel("attack shark", List.of("x6", "x11", "x87"), List.of()),
                 new BrandAndModel("movespeed", List.of(), List.of()),

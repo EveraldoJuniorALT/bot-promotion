@@ -1,4 +1,4 @@
-package bot.promotion.model;
+package bot.promotion.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

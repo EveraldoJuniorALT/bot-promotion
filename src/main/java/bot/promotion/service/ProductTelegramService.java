@@ -4,9 +4,9 @@ import bot.promotion.client.FetchProductDetail;
 import bot.promotion.client.FetchShippingInfo;
 import bot.promotion.client.SkuProductInfo;
 import bot.promotion.dto.*;
-import bot.promotion.model.PriceHistory;
-import bot.promotion.model.Product;
-import bot.promotion.model.ProductVariant;
+import bot.promotion.entity.PriceHistory;
+import bot.promotion.entity.Product;
+import bot.promotion.entity.ProductVariant;
 import bot.promotion.repository.PriceHistoryRepository;
 import bot.promotion.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -195,11 +195,10 @@ public class ProductTelegramService {
 
         if (productDetail.getSkuId() == null || productDetail.getSkuId().isBlank()) return Collections.emptyList();
 
-        SkuProduct sku = getSkuProduct(productDetail);
-        return List.of(sku);
+        return buildSkuProduct(productDetail);
     }
 
-    private SkuProduct getSkuProduct(HotProduct productDetail) {
+    private List<SkuProduct> buildSkuProduct(HotProduct productDetail) {
         ShippingInfo shippingInfo = processToFetchShippingInfo(productDetail);
 
         SkuProduct sku = new SkuProduct();
@@ -214,7 +213,10 @@ public class ProductTelegramService {
         if (shippingInfo != null && !shippingInfo.getShippingFee().isBlank()) {
             sku.setShippingFees(shippingInfo.getShippingFee());
         }
-        return sku;
+
+        ArrayList<SkuProduct> skuList = new ArrayList<>();
+        skuList.add(sku);
+        return skuList;
     }
 
     private boolean isImageMissing(SkuProduct sku) {

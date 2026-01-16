@@ -1,7 +1,7 @@
 package bot.promotion.client;
 
 import bot.promotion.dto.AffiliateLinkResponse;
-import bot.promotion.model.Token;
+import bot.promotion.entity.Token;
 import bot.promotion.repository.TokenRepository;
 import com.aliexpress.open.request.AliexpressAffiliateLinkGenerateRequest;
 import com.aliexpress.open.response.AliexpressAffiliateLinkGenerateResponse;

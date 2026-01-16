@@ -2,7 +2,7 @@ package bot.promotion.service;
 
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.SkuProduct;
-import bot.promotion.model.Coupon;
+import bot.promotion.entity.Coupon;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

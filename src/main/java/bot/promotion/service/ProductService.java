@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
-    private final AliexpressApiClient apiClient;
+    private final AliexpressApiClient fetchHotProducts;
     private final TelegramReceiveAndPost telegramReceiveAndPost;
     private final TelegramMessageFormatter formatter;
     private final ProductUrlService urlService;
@@ -32,9 +32,9 @@ public class ProductService {
     );
 
     @Autowired
-    public ProductService(AliexpressApiClient apiClient, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
+    public ProductService(AliexpressApiClient fetchHotProducts, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
                           ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels) {
-        this.apiClient = apiClient;
+        this.fetchHotProducts = fetchHotProducts;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
         this.formatter = formatter;
         this.urlService = urlService;
@@ -60,25 +60,12 @@ public class ProductService {
 
     private List<HotProduct> fetchProductsForKeyword(String keyword, List<String> models, List<String> excludedModels) {
         List<HotProduct> allProducts = new ArrayList<>();
-        int currentPage = 1;
+        processToFetchHotProducts(keyword, allProducts);
+        System.out.println("Total products fetched for keyword " + keyword + ": " + allProducts.size());
 
-        while (true) {
-            HotProductResponse responseApi = apiClient.getHotProduct(currentPage, keyword);
-            if (responseApi == null ||
-                    responseApi.getRespResult() == null ||
-                    responseApi.getRespResult().getResult() == null ||
-                    responseApi.getRespResult().getResult().getProductsList() == null ||
-                    responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
-                break;
-            }
-            allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
-            currentPage++;
-            safeSleep(4000);
-        }
         filterAllProducts(allProducts, models, excludedModels);
         System.out.println("Total products after filtering: " + allProducts.size());
         return allProducts;
-
     }
 
     private void processHotProducts(List<HotProduct> products) {
@@ -173,6 +160,59 @@ public class ProductService {
                 formatter.formatMessage(product,
                         urlService.createCoinUrl(product.getProductId())));
 
+    }
+
+    private void processToFetchHotProducts(String keyword, List<HotProduct> allProducts) {
+        int currentPage = 1;
+        while (true) {
+            HotProductResponse responseApi = fetchHotProducts.getHotProduct(currentPage, keyword);
+            if (responseApi == null ||
+                    responseApi.getRespResult() == null ||
+                    responseApi.getRespResult().getResult() == null ||
+                    responseApi.getRespResult().getResult().getProductsList() == null ||
+                    responseApi.getRespResult().getResult().getProductsList().isEmpty()) {
+                break;
+            }
+            allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
+            currentPage++;
+            safeSleep(4000);
+        }
+    }
+
+    /*private List<SkuProduct> getOrBuildSku(HotProduct product) {
+        List<SkuProduct> skuProducts = processToFetchSkuProducts(product);
+        if (skuProducts != null && !skuProducts.isEmpty()) {
+            skuProducts.forEach(skuProduct -> {
+                if (isImageMissing(skuProduct)) {
+                    skuProduct.setSkuImage(product.getImageUrl());
+                }
+            });
+            return skuProducts;
+        }
+
+        SkuProduct sku = new SkuProduct();
+
+    }*/
+
+    private List<SkuProduct> processToFetchSkuProducts(HotProduct product) {
+        SkuProductResponse response = skuProductInfo.getSkuProduct(product.getProductId());
+        if (response != null &&
+                response.getRespResult() != null &&
+                response.getRespResult().getResult() != null &&
+                response.getRespResult().getResult().getSkuProductsList() != null &&
+                !response.getRespResult().getResult().getSkuProductsList().isEmpty()) {
+            return response.getRespResult().getResult().getSkuProductsList();
+        }
+        System.out.println("No SKU products found for product ID: " + product.getProductId());
+        return null;
+    }
+
+    /*private List<SkuProduct> buildSkuProduct(HotProduct product) {
+
+    }*/
+
+    private boolean isImageMissing(SkuProduct skuProduct) {
+        return skuProduct.getSkuImage() == null || skuProduct.getSkuImage().isBlank();
     }
 
     private void safeSleep(int milliseconds) {

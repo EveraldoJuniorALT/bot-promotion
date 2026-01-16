@@ -1,6 +1,6 @@
 package bot.promotion.repository;
 
-import bot.promotion.model.Coupon;
+import bot.promotion.entity.Coupon;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
