@@ -66,7 +66,7 @@ public class ProductTelegramService {
         createParameters(productId, true);
     }
 
-    //With boolean expression "shouldPublish", I can choose if I want to publish the product or just save it to the database.
+    // With boolean expression "shouldPublish", we can control if we want to just send the product info or also save it to the database.
     public void sendProductInfo(String productId) {
         createParameters(productId, false);
     }
@@ -94,17 +94,23 @@ public class ProductTelegramService {
             return;
         }
 
+        List<SkuProduct> skuProducts = new ArrayList<>();
         if (shouldSave) {
-            createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+            skuProducts = createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+            if (skuProducts == null || skuProducts.isEmpty()) {
+                telegramReceiveAndPost.sendTextMessage("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
+                return;
+            }
         }
-        publishAndUpdateProduct(productId, affiliateLink, coinPercentageDiscount, productDetail);
+
+        publishAndUpdateProduct(productId, skuProducts, affiliateLink, coinPercentageDiscount, productDetail);
     }
 
-    private void createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
+    private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
             System.out.println("No SKU to process for product ID in line 104: " + productId);
-            return;
+            return null;
         }
 
         try {
@@ -120,16 +126,18 @@ public class ProductTelegramService {
             System.out.println("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
             System.out.println("Reason: " + e.getMessage());
         }
+        return skusToProcess;
     }
 
-    private void publishAndUpdateProduct(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
-        List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
+    private void publishAndUpdateProduct(String productId, List<SkuProduct> skusToProcess, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
+        if (skusToProcess == null || skusToProcess.isEmpty()) skusToProcess = getOrBuildSku(productDetail);
+
         if (skusToProcess.isEmpty()) {
-            System.out.println("No SKU to process for product ID in line 126: " + productId);
+            System.out.println("No SKU to process for publishing for product ID in line 137: " + productId);
             return;
         }
-
-        chooseBestProduct(productDetail, skusToProcess, affiliateLink, coinPercentageDiscount);
+        List<SkuProduct> allSkus = skusToProcess;
+        chooseBestProduct(productDetail, allSkus, affiliateLink, coinPercentageDiscount);
 
         try {
             transactionTemplate.execute(status -> {
@@ -144,7 +152,7 @@ public class ProductTelegramService {
                 product.setAffiliateLink(affiliateLink);
                 product.setDiscountCoinValue(coinPercentageDiscount);
                 product.setLastPostedOn(LocalDateTime.now());
-                forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
+                forEachVariant(productDetail, allSkus, product, coinPercentageDiscount);
 
                 productRepository.save(product);
                 updateAveragesForVariant(product);
@@ -298,15 +306,18 @@ public class ProductTelegramService {
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
                         SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
-                        Collectors.minBy(Comparator.comparing(SkuProduct::getSalePrice))
+                        Collectors.minBy(getBestVariantComparator())
                 ));
 
-        List<SkuProduct> cheapestByGroup = groupedByCheapest.values().stream()
+        List<SkuProduct> bestVariantsOfEachModel = groupedByCheapest.values().stream()
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .sorted(getBestVariantComparator())
                 .toList();
 
-        publishProduct(productDetail, cheapestByGroup.getFirst(), affiliateLink, coinPercentageDiscount);
+        if (bestVariantsOfEachModel.isEmpty()) return;
+
+        publishProduct(productDetail, bestVariantsOfEachModel.getFirst(), affiliateLink, coinPercentageDiscount);
     }
 
     private String simplifiedGroupkey(String title) {
@@ -323,6 +334,35 @@ public class ProductTelegramService {
             return "color";
         }
         return titleFormated;
+    }
+
+    private Comparator<SkuProduct> getBestVariantComparator() {
+        return Comparator
+                .comparingInt((SkuProduct sku) -> isShippedFromBrazil(sku) ? 0 : 1)
+                .thenComparingDouble(this::extractShippingFee)
+                .thenComparingDouble(this::extractSalePrice);
+    }
+
+    private double extractShippingFee(SkuProduct sku) {
+        if (sku.getShippingFees() == null || sku.getShippingFees().isEmpty()) return 0.0;
+        try {
+            return Double.parseDouble(sku.getShippingFees());
+        } catch (NumberFormatException e) {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    private double extractSalePrice(SkuProduct sku) {
+        if (sku.getSalePrice() == null) return Double.MAX_VALUE;
+        try {
+            return Double.parseDouble(sku.getSalePrice());
+        } catch (NumberFormatException e) {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    private boolean isShippedFromBrazil(SkuProduct sku) {
+        return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
     }
 
     private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, String affiliateLink, BigDecimal coinPercentageDiscount) {
