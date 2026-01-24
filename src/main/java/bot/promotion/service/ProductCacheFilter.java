@@ -70,8 +70,8 @@ public class ProductCacheFilter {
 
     private boolean isCheaper(HotProduct newProduct, HotProduct oldProduct) {
         try {
-            BigDecimal newPrice = new BigDecimal(finalPriceService.calculateFinalPrice(newProduct, newProduct.getAffiliateLink()));
-            BigDecimal oldPrice = new BigDecimal(finalPriceService.calculateFinalPrice(oldProduct, oldProduct.getAffiliateLink()));
+            BigDecimal newPrice = finalPriceService.calculateFinalPrice(newProduct, newProduct.getAffiliateLink());
+            BigDecimal oldPrice = finalPriceService.calculateFinalPrice(oldProduct, oldProduct.getAffiliateLink());
 
             if (newPrice.compareTo(oldPrice) >= 0) {
                 return false;
