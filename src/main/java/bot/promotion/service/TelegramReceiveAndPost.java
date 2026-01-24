@@ -60,32 +60,28 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     }
 
     private void processMessageReceived(Update update, String productUrl) {
+        String productId = productUrlService.processUrlAndExtractId(productUrl);
+        if (productId == null) return;
+
         deleteUserMessage(update.getMessage().getMessageId(), update.getMessage().getChatId());
         if (update.getMessage().getText().startsWith("/save")) {
-            processSaveCommand(productUrl);
+            processSaveCommand(productId);
             return;
         }
 
         if (update.getMessage().getText().startsWith("/post")) {
-            processProductUrl(productUrl);
+            processProductUrl(productId);
             return;
         }
-
-        String productId = productUrlService.processUrlAndExtractId(productUrl);
-        if (productId == null) return;
 
         sendTextMessage(productUrlService.createCoinUrl(productId));
     }
 
-    private void processProductUrl(String url) {
-        String productId = productUrlService.processUrlAndExtractId(url);
-        if (productId == null) return;
+    private void processProductUrl(String productId) {
         productTelegramService.sendProductInfo(productId);
     }
 
-    private void processSaveCommand(String url) {
-        String productId = productUrlService.processUrlAndExtractId(url);
-        if (productId == null) return;
+    private void processSaveCommand(String productId) {
         productTelegramService.processSaveProductUrl(productId);
     }
 
