@@ -17,8 +17,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
-
 @Service
 public class FinalPriceService {
     private final CouponRepository couponRepository;
@@ -42,11 +40,11 @@ public class FinalPriceService {
      * But, for now, I need to deliver the feature.
      */
 
-    public String calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
+    public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
 
         if (skuProduct.getShipFromCountry().equals("BR")) {
-            return format("R$ %.2f", afterDiscount);
+            return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 
         BigDecimal limiteUSD = new BigDecimal("50.00");
@@ -57,21 +55,21 @@ public class FinalPriceService {
             BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
             BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
-            return format("R$ %.2f", finalPrice);
+            return finalPrice.setScale(2, RoundingMode.HALF_UP);
         }
 
         BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
         BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
         BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
 
-        return format("R$ %.2f", finalPrice);
+        return finalPrice.setScale(2, RoundingMode.HALF_UP);
     }
 
-    public String calculateFinalPrice(HotProduct product, String affiliateLink) {
+    public BigDecimal calculateFinalPrice(HotProduct product, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, affiliateLink);
 
         if (product.getOriginalCurrency().equals("BRL")) {
-            return afterDiscount.setScale(2, RoundingMode.HALF_UP).toString();
+            return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 
         BigDecimal limiteUSD = new BigDecimal("50.00");
@@ -82,14 +80,14 @@ public class FinalPriceService {
             BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
             BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
-            return finalPrice.setScale(2, RoundingMode.HALF_UP).toString();
+            return finalPrice.setScale(2, RoundingMode.HALF_UP);
         }
 
         BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
         BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
         BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
 
-        return finalPrice.setScale(2, RoundingMode.HALF_UP).toString();
+        return finalPrice.setScale(2, RoundingMode.HALF_UP);
     }
 
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
