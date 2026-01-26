@@ -114,7 +114,8 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         List<String> links = productUrlService.createCoinUrl(productId);
         stringBuilder.append("Apenas no App, com super descontos❗❗").append("\n\n");
         stringBuilder.append("🔗 ").append(links.getFirst()).append("\n\n");
-        stringBuilder.append("Para pc, sem super descontos❗❗ ").append(links.getLast()).append("\n\n");
+        stringBuilder.append("Para pc, sem super descontos❗❗").append("\n\n");
+        stringBuilder.append("🔗 ").append(links.getLast()).append("\n\n");
         stringBuilder.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
         return stringBuilder.toString();
     }
