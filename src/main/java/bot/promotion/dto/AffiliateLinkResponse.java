@@ -32,5 +32,8 @@ public class AffiliateLinkResponse {
     public static class PromotionLinkItem {
         @JsonProperty("promotion_link")
         private String promotionLink;
+
+        @JsonProperty("source_value")
+        private String sourceValue;
     }
 }

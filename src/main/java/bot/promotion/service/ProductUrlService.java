@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,8 +66,9 @@ public class ProductUrlService {
         return null;
     }
 
-    public String createCoinUrl(String productId) {
+    public List<String> createCoinUrl(String productId) {
         if (productId == null) throw new IllegalArgumentException("productId is null");
-        return affiliateLink.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId);
+        return affiliateLink.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId,
+                "https://pt.aliexpress.com/item/" + productId + ".html");
     }
 }

@@ -63,10 +63,10 @@ class ProductServiceTest {
         when(skuProductInfo.getSkuProduct("111")).thenReturn(creatResponseApiSkuProduct(creatMockSkuProducts()));
         when(skuProductInfo.getSkuProduct("222")).thenReturn(creatResponseApiSkuProduct(creatMockSkuProducts()));
 
-        when(urlService.createCoinUrl("111")).thenReturn("https://example.com/product/12345");
-        when(urlService.createCoinUrl("222")).thenReturn("https://example.com/product/12345");
+        when(urlService.createCoinUrl("111")).thenReturn(List.of("https://example.com/product/11111", "https://example2.com/product/55555"));
+        when(urlService.createCoinUrl("222")).thenReturn(List.of("https://example.com/product/22222", "https://example2.com/product/33333"));
 
-        when(formatter.formatMessage(any(), any(), anyString(), any())).thenReturn("Formatted Message");
+        when(formatter.formatMessage(any(), any(), anyList(), any())).thenReturn("Formatted Message");
 
         productService.fetchHotProducts();
 
@@ -97,15 +97,15 @@ class ProductServiceTest {
                 .thenReturn(creatResponseApiShippingInfo(creatMockShippingInfo(1)))
                 .thenReturn(creatResponseApiShippingInfo(creatMockShippingInfo(2)));
 
-        when(urlService.createCoinUrl("111")).thenReturn("https://example.com/product/12345");
-        when(urlService.createCoinUrl("222")).thenReturn("https://example.com/product/12345");
+        when(urlService.createCoinUrl("111")).thenReturn(List.of("https://example.com/product/11111", "https://example2.com/product/55555"));
+        when(urlService.createCoinUrl("222")).thenReturn(List.of("https://example.com/product/22222", "https://example2.com/product/33333"));
 
-        when(formatter.formatMessage(any(), any(), anyString(), any())).thenReturn("Formatted Message");
+        when(formatter.formatMessage(any(), any(), anyList(), any())).thenReturn("Formatted Message");
 
         productService.fetchHotProducts();
 
         ArgumentCaptor<SkuProduct> skuCaptor = ArgumentCaptor.forClass(SkuProduct.class);
-        verify(formatter, times(2)).formatMessage(any(), skuCaptor.capture(), anyString(), any());
+        verify(formatter, times(2)).formatMessage(any(), skuCaptor.capture(), anyList(), any());
         verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"));
 
         List<SkuProduct> capturedSkus = skuCaptor.getAllValues();

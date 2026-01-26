@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -34,14 +36,14 @@ public class AffiliateLink {
         this.iopClient = iopClient;
     }
 
-    public String generateAffiliateLink(String productURL) {
+    public List<String> generateAffiliateLink(String productUrlApp, String productUrlPc) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
             System.out.println("Access token is null in line 40");
             return null;
         }
-
-        AliexpressAffiliateLinkGenerateRequest request = getAffiliateLinkRequest(productURL);
+        String allUrls = productUrlApp + "," + productUrlPc;
+        AliexpressAffiliateLinkGenerateRequest request = getAffiliateLinkRequest(allUrls);
         safeSleep(5000); // Sleep for 5 seconds before making the request
 
         AliexpressAffiliateLinkGenerateResponse linkResponse = executeRequest(request, accessToken);
@@ -96,19 +98,29 @@ public class AffiliateLink {
         return responseApi != null && responseApi.isSuccess();
     }
 
-    private String parseResponse(AliexpressAffiliateLinkGenerateResponse responseApi) {
+    private List<String> parseResponse(AliexpressAffiliateLinkGenerateResponse responseApi) {
         try {
             String jsonBody = responseApi.getGopResponseBody();
             AffiliateLinkResponse customResponse = objectMapper.readValue(jsonBody, AffiliateLinkResponse.class);
-            return customResponse.getRespResult()
-                    .getResult()
-                    .getPromotionLinks()
-                    .getFirst()
-                    .getPromotionLink();
+            System.out.println(customResponse.toString());
+            return customResponse.getRespResult().getResult().getPromotionLinks().stream()
+                    .sorted(Comparator.comparingInt(this::getLinkPriority))
+                    .map(AffiliateLinkResponse.PromotionLinkItem::getPromotionLink)
+                    .toList();
         } catch (Exception e) {
             System.out.println("Error parsing JSON response in line 117: " + e.getMessage());
             return null;
         }
+    }
+
+    private int getLinkPriority(AffiliateLinkResponse.PromotionLinkItem linkItem) {
+        String sourceValue = linkItem.getSourceValue();
+        if (sourceValue != null && isPreferredLink(sourceValue)) return 0;
+        return 1;
+    }
+
+    private boolean isPreferredLink(String sourceValue) {
+        return sourceValue.contains("https://m.aliexpress.com/p/coin-index/index.html?productIds=");
     }
 
     private AliexpressAffiliateLinkGenerateResponse executeRequest(AliexpressAffiliateLinkGenerateRequest request, String accessToken) {
@@ -120,10 +132,10 @@ public class AffiliateLink {
         }
     }
 
-    private AliexpressAffiliateLinkGenerateRequest getAffiliateLinkRequest(String productURL) {
+    private AliexpressAffiliateLinkGenerateRequest getAffiliateLinkRequest(String allUrls) {
         AliexpressAffiliateLinkGenerateRequest request = new AliexpressAffiliateLinkGenerateRequest();
         request.setPromotionLinkType(0L);
-        request.setSourceValues(productURL);
+        request.setSourceValues(allUrls);
         request.setTrackingId(tracking);
         return request;
     }

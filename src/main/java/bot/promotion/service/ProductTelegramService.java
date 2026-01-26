@@ -78,15 +78,15 @@ public class ProductTelegramService {
             return;
         }
 
-        String affiliateLink = urlService.createCoinUrl(productId);
-        if (affiliateLink == null || affiliateLink.isBlank()) {
+        List<String> affiliateLinks = urlService.createCoinUrl(productId);
+        if (affiliateLinks == null || affiliateLinks.isEmpty()) {
             System.out.println("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
             return;
         }
 
-        BigDecimal coinPercentageDiscount = coinService.processLink(affiliateLink);
+        BigDecimal coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
         if (coinPercentageDiscount == null) {
-            coinPercentageDiscount = coinService.processLink(affiliateLink);
+            coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
         }
 
         if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -96,14 +96,14 @@ public class ProductTelegramService {
 
         List<SkuProduct> skuProducts = new ArrayList<>();
         if (shouldSave) {
-            skuProducts = createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+            skuProducts = createEntity(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail);
             if (skuProducts == null || skuProducts.isEmpty()) {
                 telegramReceiveAndPost.sendTextMessage("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
                 return;
             }
         }
 
-        publishAndUpdateProduct(productId, skuProducts, affiliateLink, coinPercentageDiscount, productDetail);
+        publishAndUpdateProduct(productId, skuProducts, affiliateLinks, coinPercentageDiscount, productDetail);
     }
 
     private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
@@ -129,7 +129,7 @@ public class ProductTelegramService {
         return skusToProcess;
     }
 
-    private void publishAndUpdateProduct(String productId, List<SkuProduct> skusToProcess, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
+    private void publishAndUpdateProduct(String productId, List<SkuProduct> skusToProcess, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         if (skusToProcess == null || skusToProcess.isEmpty()) skusToProcess = getOrBuildSku(productDetail);
 
         if (skusToProcess.isEmpty()) {
@@ -137,7 +137,7 @@ public class ProductTelegramService {
             return;
         }
         List<SkuProduct> allSkus = skusToProcess;
-        chooseBestProduct(productDetail, allSkus, affiliateLink, coinPercentageDiscount);
+        chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount);
 
         try {
             transactionTemplate.execute(status -> {
@@ -149,7 +149,7 @@ public class ProductTelegramService {
                 }
                 Product product = productOptional.get();
                 // Update the fields to always have the last published affiliate link and coin discount
-                product.setAffiliateLink(affiliateLink);
+                product.setAffiliateLink(affiliateLinks.getFirst());
                 product.setDiscountCoinValue(coinPercentageDiscount);
                 product.setLastPostedOn(LocalDateTime.now());
                 forEachVariant(productDetail, allSkus, product, coinPercentageDiscount);
@@ -300,7 +300,7 @@ public class ProductTelegramService {
         return null;
     }
 
-    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, String affiliateLink, BigDecimal coinPercentageDiscount) {
+    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         if (skuAllProducts.isEmpty()) return;
 
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
@@ -317,7 +317,7 @@ public class ProductTelegramService {
 
         if (bestVariantsOfEachModel.isEmpty()) return;
 
-        publishProduct(productDetail, bestVariantsOfEachModel.getFirst(), affiliateLink, coinPercentageDiscount);
+        publishProduct(productDetail, bestVariantsOfEachModel.getFirst(), affiliateLinks, coinPercentageDiscount);
     }
 
     private String simplifiedGroupkey(String title) {
@@ -365,10 +365,10 @@ public class ProductTelegramService {
         return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
     }
 
-    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, String affiliateLink, BigDecimal coinPercentageDiscount) {
+    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         try {
             telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                    formatter.formatMessage(productDetail, skuProduct, affiliateLink, coinPercentageDiscount));
+                    formatter.formatMessage(productDetail, skuProduct, affiliateLinks, coinPercentageDiscount));
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
