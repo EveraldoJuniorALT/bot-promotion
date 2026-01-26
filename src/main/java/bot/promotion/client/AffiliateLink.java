@@ -102,7 +102,6 @@ public class AffiliateLink {
         try {
             String jsonBody = responseApi.getGopResponseBody();
             AffiliateLinkResponse customResponse = objectMapper.readValue(jsonBody, AffiliateLinkResponse.class);
-            System.out.println(customResponse.toString());
             return customResponse.getRespResult().getResult().getPromotionLinks().stream()
                     .sorted(Comparator.comparingInt(this::getLinkPriority))
                     .map(AffiliateLinkResponse.PromotionLinkItem::getPromotionLink)

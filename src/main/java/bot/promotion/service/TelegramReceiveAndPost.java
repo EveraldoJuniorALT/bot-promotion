@@ -29,6 +29,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     private final ProductUrlService productUrlService;
     private final ProductTelegramService productTelegramService;
     private static final Pattern URL_PATTERN = Pattern.compile("\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
+    private final long startTime;
 
     @Autowired
     public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken,
@@ -37,6 +38,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         super(botToken);
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
+        this.startTime = System.currentTimeMillis() / 1000L;
     }
 
     @Override
@@ -47,6 +49,8 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
+            if(update.getMessage().getDate() < startTime) return;
+
             String productUrl = findUrlInText(update.getMessage().getText());
             if (productUrl == null) return;
 
@@ -108,7 +112,8 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     private String createAMessageText(String productId) {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> links = productUrlService.createCoinUrl(productId);
-        stringBuilder.append("Com super descontos 🔗 ").append(links.getFirst()).append("\n\n");
+        stringBuilder.append("Apenas no App, com super descontos❗❗").append("\n\n");
+        stringBuilder.append("🔗 ").append(links.getFirst()).append("\n\n");
         stringBuilder.append("Para pc, sem super descontos❗❗ ").append(links.getLast()).append("\n\n");
         stringBuilder.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
         return stringBuilder.toString();
