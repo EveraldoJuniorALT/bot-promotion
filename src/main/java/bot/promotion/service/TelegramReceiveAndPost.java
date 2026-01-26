@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,15 +75,15 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
             return;
         }
 
-        sendTextMessage(productUrlService.createCoinUrl(productId));
-    }
-
-    private void processProductUrl(String productId) {
-        productTelegramService.sendProductInfo(productId);
+        sendTextMessage(createAMessageText(productId));
     }
 
     private void processSaveCommand(String productId) {
         productTelegramService.processSaveProductUrl(productId);
+    }
+
+    private void processProductUrl(String productId) {
+        productTelegramService.sendProductInfo(productId);
     }
 
     private String findUrlInText(String text) {
@@ -102,6 +103,15 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             System.out.println("Error deleting user message in line 75: " + e.getMessage());
         }
+    }
+
+    private String createAMessageText(String productId) {
+        StringBuilder stringBuilder = new StringBuilder();
+        List<String> links = productUrlService.createCoinUrl(productId);
+        stringBuilder.append("Com super descontos 🔗 ").append(links.getFirst()).append("\n\n");
+        stringBuilder.append("Para pc, sem super descontos❗❗ ").append(links.getLast()).append("\n\n");
+        stringBuilder.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
+        return stringBuilder.toString();
     }
 
     public void sendPhotoMessage(String photoUrl, String text) {

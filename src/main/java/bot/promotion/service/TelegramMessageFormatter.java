@@ -20,15 +20,11 @@ public class TelegramMessageFormatter {
     public TelegramMessageFormatter(FinalPriceService finalPriceService) {
         this.finalPriceService = finalPriceService;
     }
-    /*
-    * Yes, I know there`s a lot of duplicate code here.
-    * I`ll refactor it soon.
-    * But, for now, I need to deliver the feature.
-    */
-    public String formatMessage(HotProduct product, SkuProduct skuProduct, String affiliateLink, BigDecimal coinPercentageDiscount) {
+
+    public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         String finalPrice = "";
         if (coinPercentageDiscount == null) {
-            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLink));
+            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLinks.getFirst()));
         }
         if (coinPercentageDiscount != null) {
             finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount));
@@ -58,8 +54,9 @@ public class TelegramMessageFormatter {
             message.append(String.join(" + ", codes));
         }
         message.append(" + Moedas \n\n");
-        message.append("🔗 ").append(affiliateLink).append("\n\n");
-        message.append("❗ Apenas no APP, após abrir o link, o produto vai estar na 1ª posição da pág de moedas. \n\n");
+        message.append("🔗 ").append(affiliateLinks.getFirst()).append("\n\n");
+        message.append("❗ Super desconto Apenas no APP, após abrir o link, o produto vai estar na 1ª posição da pág de moedas. \n\n");
+        message.append("Link para PC sem super desconto: ").append(affiliateLinks.getLast()).append("\n\n");
         message.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
 
         return message.toString();
