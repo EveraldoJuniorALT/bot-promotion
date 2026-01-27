@@ -74,13 +74,13 @@ public class ProductTelegramService {
     private void createParameters(String productId, boolean shouldSave) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            System.out.println("Couldn't be saved because no product detail found for product ID: " + productId);
+            sendTextLog("Couldn't be saved because no product detail found for product ID: " + productId);
             return;
         }
 
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            System.out.println("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
+            sendTextLog("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
             return;
         }
 
@@ -90,7 +90,7 @@ public class ProductTelegramService {
         }
 
         if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) <= 0) {
-            System.out.println("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
+            sendTextLog("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
             return;
         }
 
@@ -98,7 +98,7 @@ public class ProductTelegramService {
         if (shouldSave) {
             skuProducts = createEntity(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail);
             if (skuProducts == null || skuProducts.isEmpty()) {
-                telegramReceiveAndPost.sendTextMessage("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
+                sendTextLog("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
                 return;
             }
         }
@@ -109,7 +109,7 @@ public class ProductTelegramService {
     private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
-            System.out.println("No SKU to process for product ID in line 104: " + productId);
+            sendTextLog("No SKU to process for product ID in line 112: " + productId);
             return null;
         }
 
@@ -123,7 +123,7 @@ public class ProductTelegramService {
                 return null;
             });
         } catch (Exception e) {
-            System.out.println("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
+            sendTextLog("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
             System.out.println("Reason: " + e.getMessage());
         }
         return skusToProcess;
@@ -133,7 +133,7 @@ public class ProductTelegramService {
         if (skusToProcess == null || skusToProcess.isEmpty()) skusToProcess = getOrBuildSku(productDetail);
 
         if (skusToProcess.isEmpty()) {
-            System.out.println("No SKU to process for publishing for product ID in line 137: " + productId);
+            sendTextLog("No SKU to process for publishing for product ID in line 136: " + productId);
             return;
         }
         List<SkuProduct> allSkus = skusToProcess;
@@ -144,7 +144,7 @@ public class ProductTelegramService {
 
                 Optional<Product> productOptional = productRepository.findByProductId(productId);
                 if (productOptional.isEmpty()) {
-                    telegramReceiveAndPost.sendTextMessage("Product with ID " + productId + " not found in the database to update after publishing.");
+                    sendTextLog("Product with ID " + productId + " not found in the database to update after publishing.");
                     return null;
                 }
                 Product product = productOptional.get();
@@ -159,7 +159,7 @@ public class ProductTelegramService {
                 return null;
             });
         } catch (Exception e) {
-            System.out.println("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
+            sendTextLog("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
             System.out.println("Reason: " + e.getMessage());
         }
     }
@@ -272,7 +272,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        System.out.println("No product detail found for product ID in line 247: " + productId);
+        System.out.println("No product detail found for product ID in line 275: " + productId);
         return null;
     }
 
@@ -285,7 +285,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        System.out.println("No Sku product info found for product ID: " + productId);
+        System.out.println("No Sku product info found for product ID in line 288: " + productId);
         return null;
     }
 
@@ -296,7 +296,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        System.out.println("No shipping info found for product ID: " + productDetail.getProductId());
+        System.out.println("No shipping info found for product ID in line 299: " + productDetail.getProductId());
         return null;
     }
 
@@ -374,5 +374,10 @@ public class ProductTelegramService {
             Thread.currentThread().interrupt();
             System.out.println("Thread was interrupted during publishing product");
         }
+    }
+
+    private void sendTextLog(String message) {
+        telegramReceiveAndPost.sendTextMessage(message);
+        System.out.println(message);
     }
 }
