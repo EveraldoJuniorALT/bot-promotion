@@ -137,16 +137,18 @@ public class ProductTelegramService {
             return;
         }
         List<SkuProduct> allSkus = skusToProcess;
-        chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount);
-
         try {
             transactionTemplate.execute(status -> {
 
                 Optional<Product> productOptional = productRepository.findByProductId(productId);
                 if (productOptional.isEmpty()) {
+                    chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, false);
                     sendTextLog("Product with ID " + productId + " not found in the database to update after publishing.");
                     return null;
                 }
+                chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, true);
+                //isPriority is used to determine witch group the product will be published in on telegram.
+
                 Product product = productOptional.get();
                 // Update the fields to always have the last published affiliate link and coin discount
                 product.setAffiliateLink(affiliateLinks.getFirst());
@@ -300,8 +302,13 @@ public class ProductTelegramService {
         return null;
     }
 
-    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
+    private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
         if (skuAllProducts.isEmpty()) return;
+
+        if(skuAllProducts.size() == 1) {
+            publishProduct(productDetail, skuAllProducts.getFirst(), affiliateLinks, coinPercentageDiscount, isPriority);
+            return;
+        }
 
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
@@ -317,7 +324,7 @@ public class ProductTelegramService {
 
         if (bestVariantsOfEachModel.isEmpty()) return;
 
-        publishProduct(productDetail, bestVariantsOfEachModel.getFirst(), affiliateLinks, coinPercentageDiscount);
+        publishProduct(productDetail, bestVariantsOfEachModel.getFirst(), affiliateLinks, coinPercentageDiscount, isPriority);
     }
 
     private String simplifiedGroupkey(String title) {
@@ -365,10 +372,10 @@ public class ProductTelegramService {
         return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
     }
 
-    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
+    private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
         try {
             telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                    formatter.formatMessage(productDetail, skuProduct, affiliateLinks, coinPercentageDiscount));
+                    formatter.formatMessage(productDetail, skuProduct, affiliateLinks, coinPercentageDiscount), isPriority);
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -377,7 +384,7 @@ public class ProductTelegramService {
     }
 
     private void sendTextLog(String message) {
-        telegramReceiveAndPost.sendTextMessage(message);
+        telegramReceiveAndPost.sendTextLogMessage(message);
         System.out.println(message);
     }
 }
