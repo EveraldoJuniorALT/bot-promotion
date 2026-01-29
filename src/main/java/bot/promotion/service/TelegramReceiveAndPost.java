@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
@@ -25,6 +26,10 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
 
     @Value("${telegram.bot.chat-id}")
     private String chatId;
+
+    @Value("${telegram.bot.chat-id-priority}")
+    private String chatIdPriority;
+
 
     private final ProductUrlService productUrlService;
     private final ProductTelegramService productTelegramService;
@@ -49,18 +54,14 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-            if(update.getMessage().getDate() < startTime) return;
+            if (update.getMessage().getDate() < startTime) return;
 
             String productUrl = findUrlInText(update.getMessage().getText());
             if (productUrl == null) return;
 
             if (!productUrl.contains("aliexpress.com")) return;
 
-            try {
-                processMessageReceived(update, productUrl);
-            } catch (Exception e) {
-                System.out.println("Error processing received message: " + e.getMessage());
-            }
+            processMessageReceived(update, productUrl);
         }
     }
 
@@ -68,18 +69,31 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         String productId = productUrlService.processUrlAndExtractId(productUrl);
         if (productId == null) return;
 
-        deleteUserMessage(update.getMessage().getMessageId(), update.getMessage().getChatId());
-        if (update.getMessage().getText().startsWith("/save")) {
-            processSaveCommand(productId);
-            return;
-        }
+        String textMessage = update.getMessage().getText();
+        String chatId = update.getMessage().getChatId().toString();
+        Integer messageId = update.getMessage().getMessageId();
 
-        if (update.getMessage().getText().startsWith("/post")) {
-            processProductUrl(productId);
-            return;
-        }
+        switch (textMessage) {
+            case "/save":
+                deleteUserMessage(messageId, chatId);
+                processSaveCommand(productId);
+                break;
 
-        sendTextMessage(createAMessageText(productId));
+            case "/post":
+                deleteUserMessage(messageId, chatId);
+                processProductUrl(productId);
+                break;
+
+            default:
+                sendTextMessage(createMessageText(productId, update.getMessage().getFrom()), chatId, messageId);
+                deleteUserMessage(messageId, chatId);
+                break;
+        }
+        /*
+         * The calls to the method above are intentionally duplicated
+         * For the 'sendTextMessage' method to function correctly,
+         * the message must be deleted after its execution.
+         */
     }
 
     private void processSaveCommand(String productId) {
@@ -98,9 +112,9 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         return null;
     }
 
-    private void deleteUserMessage(Integer messageId, Long chatIdFromMessage) {
+    private void deleteUserMessage(Integer messageId, String chatIdFromMessage) {
         DeleteMessage deleteMessage = new DeleteMessage();
-        deleteMessage.setChatId(chatIdFromMessage.toString());
+        deleteMessage.setChatId(chatIdFromMessage);
         deleteMessage.setMessageId(messageId);
         try {
             execute(deleteMessage);
@@ -109,21 +123,26 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
-    private String createAMessageText(String productId) {
+    private String createMessageText(String productId, User userShared) {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> links = productUrlService.createCoinUrl(productId);
-        stringBuilder.append("Apenas no App, com super descontos❗❗").append("\n\n");
-        stringBuilder.append("🔗 ").append(links.getFirst()).append("\n\n");
-        stringBuilder.append("Para pc, sem super descontos❗❗").append("\n\n");
+        stringBuilder.append("@").append(verifyUserName(userShared) ? userShared.getUserName() : userShared.getFirstName()).append(" compartilhou um link:\n\n");
+        stringBuilder.append("Link com super descontos, apenas no APP❗❗").append("\n");
+        stringBuilder.append("✅ ").append(links.getFirst()).append("\n\n");
+        stringBuilder.append("Para pc, sem super descontos❗❗").append("\n");
         stringBuilder.append("🔗 ").append(links.getLast()).append("\n\n");
         stringBuilder.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
         return stringBuilder.toString();
     }
 
-    public void sendPhotoMessage(String photoUrl, String text) {
+    private boolean verifyUserName(User userShared) {
+        return userShared.getUserName() != null && !userShared.getUserName().isEmpty();
+    }
+
+    public void sendPhotoMessage(String photoUrl, String text, boolean isPriority) {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setParseMode(ParseMode.HTML);
-        sendPhoto.setChatId(chatId);
+        sendPhoto.setChatId(isPriority ? this.chatIdPriority : this.chatId);
         sendPhoto.setPhoto(new InputFile(photoUrl));
         sendPhoto.setCaption(text);
         try {
@@ -133,10 +152,11 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
-    public void sendTextMessage(String text) {
+    public void sendTextMessage(String text, String chatIdFromTelegram, Integer replyToMessageId) {
         SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
+        sendMessage.setChatId(chatIdFromTelegram);
         sendMessage.setText(text);
+        sendMessage.setReplyToMessageId(replyToMessageId);
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
@@ -144,4 +164,14 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
+    public void sendTextLogMessage(String text) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(text);
+        try {
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            System.out.println("Error sending log text message: " + e.getMessage());
+        }
+    }
 }
