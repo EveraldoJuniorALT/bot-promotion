@@ -27,12 +27,14 @@ public class AliexpressAuthService {
     private final ObjectMapper objectMapper;
     private final TokenRepository tokenRepository;
     private final IopClient iopClient;
+    private final NotificationService notify;
 
     @Autowired
-    public AliexpressAuthService(ObjectMapper objectMapper, TokenRepository tokenRepository, IopClient iopClient) {
+    public AliexpressAuthService(ObjectMapper objectMapper, TokenRepository tokenRepository, IopClient iopClient, NotificationService notify) {
         this.iopClient = iopClient;
         this.objectMapper = objectMapper;
         this.tokenRepository = tokenRepository;
+        this.notify = notify;
     }
 
     public void exchangeCodeForToken(String code) {
@@ -43,7 +45,7 @@ public class AliexpressAuthService {
 
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
             if (!response.isSuccess()) {
-                System.out.println("Error: Answer from API is null in line 46 on AliexpressAuthService.exchangeCodeForToken");
+                notify.sendWarningMessage("Answer from API is null in line 48 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
 
@@ -59,19 +61,17 @@ public class AliexpressAuthService {
 
             tokenRepository.save(tokenEntity);
             System.out.println("Saved in DB successfully");
-
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Aliexpress API, Line 64 on AliexpressAuthService.exchangeCodeForToken: " + e.getStatusCode());
-            System.err.println("Error response body: " + e.getResponseBodyAsString());
+            notify.sendErrorMessage("Http error when calling Aliexpress API, Line 65 on AliexpressAuthService.exchangeCodeForToken: ", e);
         } catch (Exception e) {
-            System.out.println("Error in line 67 on AliexpressAuthService.exchangeCodeForToken" + e.getMessage());
+            notify.sendErrorMessage("Error in line 67 on AliexpressAuthService.exchangeCodeForToken ", e);
         }
     }
 
     public void refreshToken() {
         Optional<Token> optionalToken = tokenRepository.findById("aliexpress_token");
         if (optionalToken.isEmpty()) {
-            System.out.println("Token not found in DB");
+            notify.sendWarningMessage("Token not found in DB");
             return;
         }
 
@@ -86,7 +86,7 @@ public class AliexpressAuthService {
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
 
             if (!response.isSuccess()) {
-                System.out.println("Answer from API is null, access token not renewed. Line 89 ");
+                notify.sendWarningMessage("Answer from API is null, access token not renewed. Line 90 ");
                 return;
             }
 
@@ -100,10 +100,9 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            System.err.println("Http error when calling Ali API in line 103 on AliexpressAuthService.refreshToken: " + e.getStatusCode());
-            System.err.println("Error response body: " + e.getResponseBodyAsString());
+            notify.sendErrorMessage("Http error when calling Ali API in line 103 on AliexpressAuthService.refreshToken: ", e);
         } catch (Exception e) {
-            System.out.println("Error in line 106 on AliexpressAuthService.refreshToken" + e.getMessage());
+            notify.sendErrorMessage("Error in line 105 on AliexpressAuthService.refreshToken", e);
         }
     }
 }

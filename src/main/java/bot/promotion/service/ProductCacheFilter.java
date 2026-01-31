@@ -18,14 +18,16 @@ import java.util.stream.Collectors;
 @Component
 public class ProductCacheFilter {
     private final FinalPriceService finalPriceService;
+    private final NotificationService notify;
     private final Clock clock;
     private Map<String, HotProduct> oldListProducts = new HashMap<>();
     private LocalDateTime cacheTime;
     private static final Duration CACHE_DURATION = Duration.ofHours(12);
 
     @Autowired
-    public ProductCacheFilter(FinalPriceService finalPriceService, Clock clock) {
+    public ProductCacheFilter(FinalPriceService finalPriceService, NotificationService notify, Clock clock) {
         this.finalPriceService = finalPriceService;
+        this.notify = notify;
         this.clock = clock;
         this.cacheTime = LocalDateTime.now(clock);
     }
@@ -82,7 +84,7 @@ public class ProductCacheFilter {
 
             return difference.compareTo(minDiscount) >= 0;
         } catch (Exception e) {
-            System.out.println("Error comparing prices " + e.getMessage());
+            notify.sendErrorMessage("Error comparing prices ", e);
             return false;
         }
     }

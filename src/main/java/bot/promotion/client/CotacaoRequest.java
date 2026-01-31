@@ -1,6 +1,7 @@
 package bot.promotion.client;
 
 import bot.promotion.dto.BCBApiResponse;
+import bot.promotion.service.NotificationService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,10 +18,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CotacaoRequest {
     private final RestTemplate restTemplate;
     private final AtomicReference<Double> cachedCotacao = new AtomicReference<>();
+    private final NotificationService notify;
 
     @Autowired
-    public CotacaoRequest(RestTemplate restTemplate) {
+    public CotacaoRequest(RestTemplate restTemplate, NotificationService notify) {
         this.restTemplate = restTemplate;
+        this.notify = notify;
     }
 
     public Double getCachedCotacao() {
@@ -50,7 +53,7 @@ public class CotacaoRequest {
             BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, RoundingMode.HALF_UP);
             cachedCotacao.set(cotacaoRounded.doubleValue());
         } catch (Exception e) {
-            System.out.println("Error fetching cotacao from BCB API in line 53: " + e.getMessage());
+            notify.sendErrorMessage("Error fetching cotacao from BCB API in line 56: ", e);
         }
     }
 }

@@ -18,14 +18,16 @@ public class ProductUrlService {
     private static final Pattern PRODUCT_URL_PATTERN = Pattern.compile("/(?:item/)?(\\d+)\\.html");
     private static final Pattern PRODUCT_ID_PATTERN_TWO = Pattern.compile("[?&]productIds=(\\d+)");
     private final AffiliateLink affiliateLink;
+    private final NotificationService notify;
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.ALWAYS) // Segue redirecionamentos
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
     @Autowired
-    public ProductUrlService(AffiliateLink affiliateLink) {
+    public ProductUrlService(AffiliateLink affiliateLink, NotificationService notify) {
         this.affiliateLink = affiliateLink;
+        this.notify = notify;
     }
 
     public String processUrlAndExtractId(String shortUrl) {
@@ -44,7 +46,7 @@ public class ProductUrlService {
 
             return response.uri().toString();
         } catch (Exception e) {
-            System.out.println("Error resolving final URL: " + e.getMessage());
+            notify.sendErrorMessage("Error resolving final URL: ", e);
             return null;
         }
     }
@@ -62,12 +64,11 @@ public class ProductUrlService {
             return matcherTwo.group(1);
         }
 
-        System.out.println("Product ID not found in URL: " + url);
+        notify.sendWarningMessage("Product ID not found in URL: " + url);
         return null;
     }
 
     public List<String> createCoinUrl(String productId) {
-        if (productId == null) throw new IllegalArgumentException("productId is null");
         return affiliateLink.generateAffiliateLink("https://m.aliexpress.com/p/coin-index/index.html?productIds=" + productId,
                 "https://pt.aliexpress.com/item/" + productId + ".html");
     }

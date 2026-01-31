@@ -35,6 +35,7 @@ public class ProductTelegramService {
     private final TransactionTemplate transactionTemplate;
     private final PriceHistoryRepository priceHistoryRepository;
     private final FetchShippingInfo shippingInfo;
+    private final NotificationService notify;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -48,7 +49,7 @@ public class ProductTelegramService {
     public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost,
                                   TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService, ProductRepository productRepository,
                                   AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, TransactionTemplate transactionTemplate,
-                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo) {
+                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo, NotificationService notify) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
@@ -60,6 +61,7 @@ public class ProductTelegramService {
         this.transactionTemplate = transactionTemplate;
         this.priceHistoryRepository = priceHistoryRepository;
         this.shippingInfo = shippingInfo;
+        this.notify = notify;
     }
 
     public void processSaveProductUrl(String productId) {
@@ -74,13 +76,13 @@ public class ProductTelegramService {
     private void createParameters(String productId, boolean shouldSave) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            sendTextLog("Couldn't be saved because no product detail found for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't be saved because no product detail found for product ID: " + productId);
             return;
         }
 
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            sendTextLog("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
             return;
         }
 
@@ -90,7 +92,7 @@ public class ProductTelegramService {
         }
 
         if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) <= 0) {
-            sendTextLog("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
             return;
         }
 
@@ -98,7 +100,7 @@ public class ProductTelegramService {
         if (shouldSave) {
             skuProducts = createEntity(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail);
             if (skuProducts == null || skuProducts.isEmpty()) {
-                sendTextLog("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
+                notify.sendWarningMessage("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
                 return;
             }
         }
@@ -109,7 +111,7 @@ public class ProductTelegramService {
     private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
-            sendTextLog("No SKU to process for product ID in line 112: " + productId);
+            notify.sendWarningMessage("No SKU to process for product ID in line 114: " + productId);
             return null;
         }
 
@@ -123,8 +125,7 @@ public class ProductTelegramService {
                 return null;
             });
         } catch (Exception e) {
-            sendTextLog("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
-            System.out.println("Reason: " + e.getMessage());
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity for Product ID " + productId, e);
         }
         return skusToProcess;
     }
@@ -133,7 +134,7 @@ public class ProductTelegramService {
         if (skusToProcess == null || skusToProcess.isEmpty()) skusToProcess = getOrBuildSku(productDetail);
 
         if (skusToProcess.isEmpty()) {
-            sendTextLog("No SKU to process for publishing for product ID in line 136: " + productId);
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 138: " + productId);
             return;
         }
         List<SkuProduct> allSkus = skusToProcess;
@@ -143,7 +144,7 @@ public class ProductTelegramService {
                 Optional<Product> productOptional = productRepository.findByProductId(productId);
                 if (productOptional.isEmpty()) {
                     chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, false);
-                    sendTextLog("Product with ID " + productId + " not found in the database to update after publishing.");
+                    notify.sendWarningMessage("Product with ID " + productId + " not found in the database to update after publishing.");
                     return null;
                 }
                 chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, true);
@@ -161,8 +162,7 @@ public class ProductTelegramService {
                 return null;
             });
         } catch (Exception e) {
-            sendTextLog("CRITICAL ERROR: Failed to save database entity for Product ID " + productId);
-            System.out.println("Reason: " + e.getMessage());
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity for Product ID " + productId, e);
         }
     }
 
@@ -274,7 +274,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        System.out.println("No product detail found for product ID in line 275: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 277: " + productId);
         return null;
     }
 
@@ -287,7 +287,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        System.out.println("No Sku product info found for product ID in line 288: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 290: " + productId);
         return null;
     }
 
@@ -298,14 +298,14 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        System.out.println("No shipping info found for product ID in line 299: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 301: " + productDetail.getProductId());
         return null;
     }
 
     private void chooseBestProduct(HotProduct productDetail, List<SkuProduct> skuAllProducts, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
         if (skuAllProducts.isEmpty()) return;
 
-        if(skuAllProducts.size() == 1) {
+        if (skuAllProducts.size() == 1) {
             publishProduct(productDetail, skuAllProducts.getFirst(), affiliateLinks, coinPercentageDiscount, isPriority);
             return;
         }
@@ -373,18 +373,7 @@ public class ProductTelegramService {
     }
 
     private void publishProduct(HotProduct productDetail, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
-        try {
-            telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                    formatter.formatMessage(productDetail, skuProduct, affiliateLinks, coinPercentageDiscount), isPriority);
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during publishing product");
-        }
-    }
-
-    private void sendTextLog(String message) {
-        telegramReceiveAndPost.sendTextLogMessage(message);
-        System.out.println(message);
+        telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
+                formatter.formatMessage(productDetail, skuProduct, affiliateLinks, coinPercentageDiscount), isPriority);
     }
 }

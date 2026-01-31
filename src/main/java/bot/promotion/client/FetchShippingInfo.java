@@ -2,6 +2,7 @@ package bot.promotion.client;
 
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.ShippingInfoResponse;
+import bot.promotion.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
@@ -15,16 +16,18 @@ import org.springframework.stereotype.Service;
 public class FetchShippingInfo {
     private final ObjectMapper objectMapper;
     private final IopClient iopClient;
+    private final NotificationService notify;
 
     @Autowired
-    public FetchShippingInfo(ObjectMapper objectMapper, IopClient iopClient) {
+    public FetchShippingInfo(ObjectMapper objectMapper, IopClient iopClient, NotificationService notify) {
         this.objectMapper = objectMapper;
         this.iopClient = iopClient;
+        this.notify = notify;
     }
 
     public ShippingInfoResponse getShippingInfo(HotProduct product) {
         if (product.getProductId() == null || product.getSkuId() == null) {
-            System.out.println("Product ID or SKU ID is null in getShippingInfo");
+            notify.sendWarningMessage("Product ID or SKU ID is null in getShippingInfo");
             return null;
         }
         IopRequest request = getIopRequest(product);
@@ -32,7 +35,6 @@ public class FetchShippingInfo {
         safeSleep(3000);
         IopResponse responseApi = executeRequest(request);
         if (!responseIsValid(responseApi)) {
-            System.out.println("First attempt failed, retrying");
             safeSleep(5000);
             responseApi = executeRequest(request);
         }
@@ -41,7 +43,7 @@ public class FetchShippingInfo {
             return parseResponse(responseApi);
         }
 
-        System.out.println("Failed to fetch shipping info after retrying.");
+        notify.sendWarningMessage("Failed to fetch shipping info after retrying.");
         return null;
     }
 
@@ -51,7 +53,7 @@ public class FetchShippingInfo {
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during sleep: " + e.getMessage());
+            notify.sendErrorMessage("Thread was interrupted during sleep: ", e);
         }
     }
 
@@ -60,7 +62,7 @@ public class FetchShippingInfo {
             String jsonBody = response.getGopResponseBody();
             return objectMapper.readValue(jsonBody, ShippingInfoResponse.class);
         } catch (Exception e) {
-            System.out.println("Error parsing shipping info response in line 70: " + e.getMessage());
+            notify.sendErrorMessage("Error parsing shipping info response in line 70: ", e);
             return null;
         }
     }
@@ -73,7 +75,7 @@ public class FetchShippingInfo {
         try {
             return iopClient.execute(request, Protocol.TOP);
         } catch (ApiException e) {
-            System.out.println("Error executing API request in line 56: " + e.getMessage());
+            notify.sendErrorMessage("Error executing API request in line 56: ", e);
             return null;
         }
     }

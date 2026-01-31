@@ -1,6 +1,7 @@
 package bot.promotion.client;
 
 import bot.promotion.dto.SkuProductResponse;
+import bot.promotion.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
@@ -14,10 +15,12 @@ import org.springframework.stereotype.Service;
 public class SkuProductInfo {
     private final IopClient iopClient;
     private final ObjectMapper objectMapper;
+    private final NotificationService notify;
 
-    public SkuProductInfo(IopClient iopClient, ObjectMapper objectMapper) {
+    public SkuProductInfo(IopClient iopClient, ObjectMapper objectMapper, NotificationService notify) {
         this.iopClient = iopClient;
         this.objectMapper = objectMapper;
+        this.notify = notify;
     }
 
     public SkuProductResponse getSkuProduct(String productId) {
@@ -27,7 +30,6 @@ public class SkuProductInfo {
         IopResponse responseApi = executeRequest(request);
 
         if (!responseIsValid(responseApi)) {
-            System.out.println("First attempt failed, retrying");
             safeSleep(7000);
             responseApi = executeRequest(request);
         }
@@ -35,7 +37,7 @@ public class SkuProductInfo {
         if (responseIsValid(responseApi)) {
             return parseResponse(responseApi);
         }
-        System.out.println("Failed to fetch SKU product details after retrying.");
+        notify.sendWarningMessage("Failed to fetch SKU product details after retrying.");
         return null;
     }
 
@@ -48,7 +50,7 @@ public class SkuProductInfo {
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, SkuProductResponse.class);
         } catch (Exception e) {
-            System.out.println("Error parsing SKU product response in line 51: " + e.getMessage());
+            notify.sendErrorMessage("Error parsing SKU product response in line 53: ", e);
             return null;
         }
     }
@@ -66,7 +68,7 @@ public class SkuProductInfo {
         try {
             return iopClient.execute(request, Protocol.TOP);
         } catch (ApiException e) {
-            System.out.println("Error executing API request in line 69: " + e.getMessage());
+            notify.sendErrorMessage("Error executing API request in line 71: ", e);
             return null;
         }
     }

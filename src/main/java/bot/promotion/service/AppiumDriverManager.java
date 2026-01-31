@@ -12,9 +12,11 @@ import java.time.Duration;
 public class AppiumDriverManager {
     private final UiAutomator2Options options;
     private AndroidDriver driver;
+    private final NotificationService notify;
 
-    public AppiumDriverManager(UiAutomator2Options options) {
+    public AppiumDriverManager(UiAutomator2Options options, NotificationService notify) {
         this.options = options;
+        this.notify = notify;
     }
 
     public synchronized AndroidDriver getDriver() {
@@ -25,7 +27,7 @@ public class AppiumDriverManager {
             try {
                 driver.getCurrentPackage();
             } catch (Exception e) {
-                System.out.println("Appium driver session is invalid, recreating driver: " + e.getMessage());
+                notify.sendErrorMessage("Appium driver session is invalid, recreating driver: ", e);
                 quitDriver();
                 createDriver();
             }
@@ -51,7 +53,7 @@ public class AppiumDriverManager {
             try {
                 driver.quit();
             } catch (Exception e) {
-                System.out.println("Error quitting Appium driver: " + e.getMessage());
+                notify.sendErrorMessage("Error quitting Appium driver: ", e);
             }
             driver = null;
         }

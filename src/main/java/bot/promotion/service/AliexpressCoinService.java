@@ -16,11 +16,13 @@ import java.util.regex.Pattern;
 @Service
 public class AliexpressCoinService {
     private final AppiumDriverManager driverManager;
+    private final NotificationService notify;
     private static final Pattern EXTRACT_DISCOUNT_PATTERN = Pattern.compile("(\\d+)%");
 
     @Autowired
-    public AliexpressCoinService(AppiumDriverManager driverManager) {
+    public AliexpressCoinService(AppiumDriverManager driverManager, NotificationService notify) {
         this.driverManager = driverManager;
+        this.notify = notify;
     }
 
     public BigDecimal processLink(String link) {
@@ -32,7 +34,7 @@ public class AliexpressCoinService {
             coinPercentage = executeProcess(link);
             return coinPercentage;
         } catch (Exception e) {
-            System.out.println("Error during retry: " + e.getMessage());
+            notify.sendErrorMessage("Error during retry: ", e);
             return null;
         }
     }
@@ -60,7 +62,7 @@ public class AliexpressCoinService {
             clickByCoordinates(240, 1480, driver);
 
         } catch (InterruptedException e) {
-            System.out.println("Error clicking first product: " + e.getMessage());
+            notify.sendErrorMessage("Error clicking first product: ", e);
         }
     }
 
@@ -72,7 +74,7 @@ public class AliexpressCoinService {
             String clearText = clearText(elementExtra.getText());
             return clearText != null ? new BigDecimal(clearText) : null;
         } catch (NumberFormatException e) {
-            System.out.println("No extra discount found or invalid format for BigDecimal." + e.getMessage());
+            notify.sendErrorMessage("No extra discount found or invalid format for BigDecimal.", e);
             return null;
         }
     }

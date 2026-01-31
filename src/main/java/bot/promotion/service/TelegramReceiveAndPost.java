@@ -33,16 +33,18 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
 
     private final ProductUrlService productUrlService;
     private final ProductTelegramService productTelegramService;
+    private final NotificationService notify;
     private static final Pattern URL_PATTERN = Pattern.compile("\\b((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
     private final long startTime;
 
     @Autowired
     public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken,
                                   ProductUrlService productUrlService,
-                                  ProductTelegramService productTelegramService) {
+                                  ProductTelegramService productTelegramService, NotificationService notify) {
         super(botToken);
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
+        this.notify = notify;
         this.startTime = System.currentTimeMillis() / 1000L;
     }
 
@@ -119,7 +121,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         try {
             execute(deleteMessage);
         } catch (TelegramApiException e) {
-            System.out.println("Error deleting user message in line 75: " + e.getMessage());
+            notify.sendErrorMessage("Error deleting user message in line 75: ", e);
         }
     }
 
@@ -148,7 +150,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         try {
             execute(sendPhoto);
         } catch (TelegramApiException e) {
-            System.out.println("Error sending photo message: " + e.getMessage());
+            notify.sendErrorMessage("Error sending photo message: ", e);
         }
     }
 
@@ -160,7 +162,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
-            System.out.println("Error sending text message: " + e.getMessage());
+            notify.sendErrorMessage("Error sending text message: ", e);
         }
     }
 
@@ -171,7 +173,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
-            System.out.println("Error sending log text message: " + e.getMessage());
+            notify.sendErrorMessage("Error sending log text message: ", e);
         }
     }
 }

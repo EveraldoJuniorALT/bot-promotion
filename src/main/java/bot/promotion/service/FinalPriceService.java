@@ -26,12 +26,14 @@ public class FinalPriceService {
     private static final Pattern VALUE_PROMO_CODE = Pattern.compile("BRL (\\d+\\.\\d+) off");
     private final CotacaoRequest cotacao;
     private final AliexpressCoinService aliexpressCoinService;
+    private final NotificationService notify;
 
     @Autowired
-    public FinalPriceService(CouponRepository couponRepository, CotacaoRequest cotacaoRequest, AliexpressCoinService aliexpressCoinService) {
+    public FinalPriceService(CouponRepository couponRepository, CotacaoRequest cotacaoRequest, AliexpressCoinService aliexpressCoinService, NotificationService notify) {
         this.couponRepository = couponRepository;
         this.cotacao = cotacaoRequest;
         this.aliexpressCoinService = aliexpressCoinService;
+        this.notify = notify;
     }
 
     /*
@@ -193,7 +195,7 @@ public class FinalPriceService {
 
             return discountedProductValue.subtract(discountValueCoin);
         } catch (ArithmeticException e) {
-            System.out.println("Error calculate coin discount: " + e.getMessage());
+            notify.sendErrorMessage("Error calculate coin discount: ", e);
             return discountedProductValue;
         }
 
@@ -279,7 +281,7 @@ public class FinalPriceService {
 
             return discountedProductValue.subtract(discountValueCoin);
         } catch (ArithmeticException e) {
-            System.out.println("Error calculate coin discount: " + e.getMessage());
+            notify.sendErrorMessage("Error calculate coin discount: ", e);
             return discountedProductValue;
         }
     }
