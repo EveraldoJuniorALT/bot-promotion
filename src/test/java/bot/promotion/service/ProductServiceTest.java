@@ -39,6 +39,8 @@ class ProductServiceTest {
     private BrandsAndModelsFilter brandsModels;
     @Mock
     private FetchShippingInfo shippingInfo;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     ProductService productService;
@@ -70,7 +72,7 @@ class ProductServiceTest {
 
         productService.fetchHotProducts();
 
-        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"));
+        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
     }
 
     @Test
@@ -106,7 +108,7 @@ class ProductServiceTest {
 
         ArgumentCaptor<SkuProduct> skuCaptor = ArgumentCaptor.forClass(SkuProduct.class);
         verify(formatter, times(2)).formatMessage(any(), skuCaptor.capture(), anyList(), any());
-        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"));
+        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
 
         List<SkuProduct> capturedSkus = skuCaptor.getAllValues();
         SkuProduct sku1 = capturedSkus.getFirst();
@@ -144,7 +146,7 @@ class ProductServiceTest {
         productService.fetchHotProducts();
 
         verify(productCacheFilter, never()).compareAndFilter(anyList());
-        verify(telegramReceiveAndPost, never()).sendPhotoMessage(anyString(), anyString());
+        verify(telegramReceiveAndPost, never()).sendPhotoMessage(anyString(), anyString(), anyBoolean());
     }
 
     private HotProductResponse creatResponseApiProduct(List<HotProduct> hotProducts) {

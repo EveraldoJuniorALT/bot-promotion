@@ -2,6 +2,7 @@ package bot.promotion.client;
 
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.ShippingInfoResponse;
+import bot.promotion.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
@@ -27,11 +28,13 @@ public class FetchShippingInfoTest {
 
     private FetchShippingInfo fetchShippingInfo;
     private HotProduct mockProduct;
+    @Mock
+    private NotificationService notificationService;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        fetchShippingInfo = new FetchShippingInfo(objectMapper, iopClient);
+        fetchShippingInfo = new FetchShippingInfo(objectMapper, iopClient, notificationService);
 
         mockProduct = new HotProduct();
         mockProduct.setProductId("12345");

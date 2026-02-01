@@ -24,7 +24,7 @@ class AffiliateLinkTest {
     @Autowired
     private AffiliateLink affiliateLink;
 
-    private static final String ACCESS_TOKEN = "50000100f37D6Enoaa0ktEoud0tjBFet8tRzdFlSIVIrzjDx8148169dfQT1OGTsG1f2";
+    private static final String ACCESS_TOKEN = "";
 
     @Test
     @DisplayName("Should generate affiliate link successfully")
@@ -34,8 +34,8 @@ class AffiliateLinkTest {
         token.setAccessToken(ACCESS_TOKEN);
         when(tokenRepository.findById("aliexpress_token")).thenReturn(Optional.of(token));
 
-        String urlApp = "https://m.aliexpress.com/p/coin-index/index.html?productIds=1005007693930368";
-        String urlPc = "https://pt.aliexpress.com/item/1005001234567890.html";
+        String urlApp = "https://m.aliexpress.com/p/coin-index/index.html?productIds=1005009178167326";
+        String urlPc = "https://pt.aliexpress.com/item/1005009178167326.html";
 
         List<String> affiliateLinks = affiliateLink.generateAffiliateLink(urlApp, urlPc);
 
