@@ -32,7 +32,7 @@ public class ProductUrlService {
 
     public String processUrlAndExtractId(String shortUrl) {
         String finalUrl = findFinalUrl(shortUrl);
-        return extractProductId(finalUrl);
+        return extractProductId(finalUrl, shortUrl);
     }
 
     private String findFinalUrl(String shortUrl) {
@@ -51,20 +51,23 @@ public class ProductUrlService {
         }
     }
 
-    private String extractProductId(String url) {
-        if (url == null) return null;
+    private String extractProductId(String finalUrl, String shortUrl) {
+        if (finalUrl == null) {
+            notify.sendWarningMessage("Product ID not found in URL: " + shortUrl);
+            return null;
+        }
 
-        Matcher matcherOne = PRODUCT_URL_PATTERN.matcher(url);
+        Matcher matcherOne = PRODUCT_URL_PATTERN.matcher(finalUrl);
         if (matcherOne.find()) {
             return matcherOne.group(1);
         }
 
-        Matcher matcherTwo = PRODUCT_ID_PATTERN_TWO.matcher(url);
+        Matcher matcherTwo = PRODUCT_ID_PATTERN_TWO.matcher(finalUrl);
         if (matcherTwo.find()) {
             return matcherTwo.group(1);
         }
 
-        notify.sendWarningMessage("Product ID not found in URL: " + url);
+        notify.sendWarningMessage("Product ID not found in URL: " + shortUrl);
         return null;
     }
 
