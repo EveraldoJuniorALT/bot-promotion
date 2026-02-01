@@ -22,13 +22,8 @@ public class TelegramMessageFormatter {
     }
 
     public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
-        String finalPrice = "";
-        if (coinPercentageDiscount == null) {
-            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLinks.getFirst()));
-        }
-        if (coinPercentageDiscount != null) {
-            finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount));
-        }
+        String finalPrice = coinPercentageDiscount != null ? String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount)) :
+                String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLinks.getFirst()));
 
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
