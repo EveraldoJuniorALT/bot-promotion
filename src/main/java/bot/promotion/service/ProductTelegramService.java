@@ -49,7 +49,7 @@ public class ProductTelegramService {
     public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost,
                                   TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService, ProductRepository productRepository,
                                   AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, TransactionTemplate transactionTemplate,
-                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo, NotificationService notify) {
+                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo, @Lazy NotificationService notify) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
@@ -76,13 +76,13 @@ public class ProductTelegramService {
     private void createParameters(String productId, boolean shouldSave) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            notify.sendWarningMessage("Couldn't be saved because no product detail found for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't continue because no product detail found for product ID: " + productId);
             return;
         }
 
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            notify.sendWarningMessage("Couldn't be saved because no affiliate link could be created for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't continue because no affiliate link could be created for product ID: " + productId);
             return;
         }
 
@@ -92,7 +92,7 @@ public class ProductTelegramService {
         }
 
         if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) <= 0) {
-            notify.sendWarningMessage("Couldn't be saved because no coin percentage discount could be extracted for product ID: " + productId);
+            notify.sendWarningMessage("Couldn't continue because no coin percentage discount could be extracted for product ID: " + productId);
             return;
         }
 
@@ -100,7 +100,7 @@ public class ProductTelegramService {
         if (shouldSave) {
             skuProducts = createEntity(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail);
             if (skuProducts == null || skuProducts.isEmpty()) {
-                notify.sendWarningMessage("The product with ID " + productId + " couldn't be saved and published because no product sku was found.");
+                notify.sendWarningMessage("The product with ID " + productId + " couldn't continue and published because no product sku was found.");
                 return;
             }
         }

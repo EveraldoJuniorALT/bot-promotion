@@ -25,7 +25,7 @@ public class NotificationService {
     @Async
     public void sendErrorMessage(String contextMessage, Exception e) {
         log.error("CRITICAL ERROR [{}]: {}", contextMessage, e.getMessage(), e);
-        String formatedMessage = String.format("🚨 *ERRO CRITICO*\n\n*Contexto:* %s\n*Erro:* %s",
+        String formatedMessage = String.format("🚨 ERRO CRITICO\n\nContexto: %s\n*Erro: %s",
                 contextMessage, e.getMessage());
         telegramReceiveAndPost.sendTextLogMessage(formatedMessage);
     }

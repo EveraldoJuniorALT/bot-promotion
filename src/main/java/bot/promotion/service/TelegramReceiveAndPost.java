@@ -3,6 +3,7 @@ package bot.promotion.service;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -40,7 +41,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     @Autowired
     public TelegramReceiveAndPost(@Value("${telegram.bot.token}") String botToken,
                                   ProductUrlService productUrlService,
-                                  ProductTelegramService productTelegramService, NotificationService notify) {
+                                  @Lazy ProductTelegramService productTelegramService, @Lazy NotificationService notify) {
         super(botToken);
         this.productUrlService = productUrlService;
         this.productTelegramService = productTelegramService;
@@ -71,7 +72,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         String productId = productUrlService.processUrlAndExtractId(productUrl);
         if (productId == null) return;
 
-        String textMessage = update.getMessage().getText();
+        String textMessage = update.getMessage().getText().toLowerCase().split("\\s+")[0];
         String chatId = update.getMessage().getChatId().toString();
         Integer messageId = update.getMessage().getMessageId();
 
