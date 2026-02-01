@@ -24,6 +24,7 @@ public class ProductService {
     private final ProductCacheFilter productCacheFilter;
     private final BrandsAndModelsFilter brandsModels;
     private final FetchShippingInfo shippingInfo;
+    private final NotificationService notify;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -35,7 +36,8 @@ public class ProductService {
 
     @Autowired
     public ProductService(AliexpressApiClient fetchHotProducts, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
-                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels, FetchShippingInfo shippingInfo) {
+                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels,
+                          FetchShippingInfo shippingInfo, NotificationService notify) {
         this.fetchHotProducts = fetchHotProducts;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
         this.formatter = formatter;
@@ -44,6 +46,7 @@ public class ProductService {
         this.productCacheFilter = productCacheFilter;
         this.brandsModels = brandsModels;
         this.shippingInfo = shippingInfo;
+        this.notify = notify;
     }
 
     public void fetchHotProducts() {
@@ -173,7 +176,7 @@ public class ProductService {
                 !response.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return response.getRespResult().getResult().getSkuProductsList();
         }
-        System.out.println("No SKU products found for product ID: " + product.getProductId());
+        notify.sendWarningMessage("No SKU products found for product ID: " + product.getProductId());
         return null;
     }
 
@@ -210,47 +213,41 @@ public class ProductService {
                 response.getRespResult().getShippingInfo() != null) {
             return response.getRespResult().getShippingInfo();
         }
-        System.out.println("No shipping info found for product ID: " + product.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID: " + product.getProductId());
         return null;
     }
 
     private void chooseBestProduct(HotProduct product, List<SkuProduct> skuAllProducts) {
         if (skuAllProducts.isEmpty()) return;
-
+        /*
+        * I will implement more advanced logic here;
+        * for now, I'll pass false
+        */
         if (skuAllProducts.size() == 1) {
-            publishProduct(product, skuAllProducts.getFirst());
+            publishProduct(product, skuAllProducts.getFirst(), false);
             return;
         }
-
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
                 .collect(Collectors.groupingBy(
-                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()), Collectors.minBy(
-                                Comparator.comparing(SkuProduct::getSalePrice))));
+                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
+                        Collectors.minBy(getBestVariantComparator())
+                ));
 
-        List<SkuProduct> cheapestByGroup = groupedByCheapest.values().stream()
+        List<SkuProduct> bestVariantsOfEachModel = groupedByCheapest.values().stream()
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .sorted(getBestVariantComparator())
                 .toList();
 
-        if (cheapestByGroup.size() == 1) {
-            publishProduct(product, cheapestByGroup.getFirst());
-            return;
-        }
+        if (bestVariantsOfEachModel.isEmpty()) return;
 
-        String firstPrice = cheapestByGroup.getFirst().getSalePrice();
-        boolean allSamePrice = cheapestByGroup.stream().allMatch(SkuProduct -> Objects.equals(firstPrice, SkuProduct.getSalePrice()));
-
-        if (allSamePrice) {
-            publishProduct(product, cheapestByGroup.getFirst());
-            return;
-        }
-
-        for (Optional<SkuProduct> sku : groupedByCheapest.values()) {
-            sku.ifPresent(skuProduct -> publishProduct(product, skuProduct));
-        }
+        publishProduct(product, bestVariantsOfEachModel.getFirst(), true);
     }
 
     private String simplifiedGroupkey(String title) {
+        if (title == null || title.isBlank()) {
+            return "unknown";
+        }
         Matcher matcher = FIRST_WORD_PATTERN.matcher(title);
         if (!matcher.find()) {
             return title;
@@ -263,10 +260,39 @@ public class ProductService {
         return titleFormated;
     }
 
-    private void publishProduct(HotProduct product, SkuProduct skuProduct) {
+    private Comparator<SkuProduct> getBestVariantComparator() {
+        return Comparator
+                .comparingInt((SkuProduct sku) -> isShippedFromBrazil(sku) ? 0 : 1)
+                .thenComparingDouble(this::extractShippingFee)
+                .thenComparingDouble(this::extractSalePrice);
+    }
+
+    private double extractShippingFee(SkuProduct sku) {
+        if (sku.getShippingFees() == null || sku.getShippingFees().isEmpty()) return 0.0;
+        try {
+            return Double.parseDouble(sku.getShippingFees());
+        } catch (NumberFormatException e) {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    private double extractSalePrice(SkuProduct sku) {
+        if (sku.getSalePrice() == null) return Double.MAX_VALUE;
+        try {
+            return Double.parseDouble(sku.getSalePrice());
+        } catch (NumberFormatException e) {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    private boolean isShippedFromBrazil(SkuProduct sku) {
+        return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
+    }
+
+    private void publishProduct(HotProduct product, SkuProduct skuProduct, boolean isPriority) {
         telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
                 formatter.formatMessage(product, skuProduct,
-                        urlService.createCoinUrl(product.getProductId()), null));
+                        urlService.createCoinUrl(product.getProductId()), null), isPriority);
     }
 
     private void safeSleep(int milliseconds) {
@@ -274,7 +300,7 @@ public class ProductService {
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Thread was interrupted during sleep");
+            notify.sendWarningMessage("Thread was interrupted during sleep");
         }
     }
 
