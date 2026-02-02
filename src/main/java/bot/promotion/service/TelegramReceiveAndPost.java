@@ -129,6 +129,8 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
     private String createMessageText(String productId, User userShared) {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> links = productUrlService.createCoinUrl(productId);
+        if (links == null || links.isEmpty()) return null;
+
         stringBuilder.append("@").append(verifyUserName(userShared) ? userShared.getUserName() : userShared.getFirstName()).append(" compartilhou um link:\n\n");
         stringBuilder.append("Link com super descontos, apenas no APP❗❗").append("\n");
         stringBuilder.append("✅ ").append(links.getFirst()).append("\n\n");

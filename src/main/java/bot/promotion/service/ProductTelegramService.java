@@ -87,11 +87,11 @@ public class ProductTelegramService {
         }
 
         BigDecimal coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
-        if (coinPercentageDiscount == null) {
+        if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) < 0) {
             coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
         }
 
-        if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) < 0) {
             notify.sendWarningMessage("Couldn't continue because no coin percentage discount could be extracted for product ID: " + productId);
             return;
         }

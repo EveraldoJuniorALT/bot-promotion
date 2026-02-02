@@ -22,9 +22,15 @@ public class TelegramMessageFormatter {
     }
 
     public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
+        if (affiliateLinks == null || affiliateLinks.isEmpty()) return null;
+
         String finalPrice = coinPercentageDiscount != null ? String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount)) :
                 String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLinks.getFirst()));
 
+        return createMessage(product, skuProduct, affiliateLinks, finalPrice);
+    }
+
+    private String createMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, String finalPrice) {
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
         message.append("💰 Valor: R$ ").append(finalPrice).append("\n\n");
