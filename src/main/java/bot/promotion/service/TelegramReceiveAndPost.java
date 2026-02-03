@@ -122,7 +122,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         try {
             execute(deleteMessage);
         } catch (TelegramApiException e) {
-            notify.sendErrorMessage("Error deleting user message in line 75: ", e);
+            notify.sendErrorMessage("Error deleting user message in line 125: ", e);
         }
     }
 

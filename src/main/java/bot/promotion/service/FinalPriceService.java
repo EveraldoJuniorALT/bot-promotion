@@ -45,7 +45,9 @@ public class FinalPriceService {
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
 
-        if (skuProduct.getShipFromCountry().equals("BR")) {
+        if (skuProduct.getShipFromCountry() != null &&
+                !skuProduct.getShipFromCountry().isBlank() &&
+                skuProduct.getShipFromCountry().equals("BR")) {
             return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -95,7 +97,9 @@ public class FinalPriceService {
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, extraDiscountCoins);
 
-        if (skuProduct.getShipFromCountry().equals("BR")) {
+        if (skuProduct.getShipFromCountry() != null &&
+                !skuProduct.getShipFromCountry().isBlank() &&
+                skuProduct.getShipFromCountry().equals("BR")) {
             return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 
