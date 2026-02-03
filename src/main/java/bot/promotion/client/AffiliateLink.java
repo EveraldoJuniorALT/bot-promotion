@@ -30,6 +30,7 @@ public class AffiliateLink {
     private String cachedAccessToken;
     private LocalDateTime tokenFetchTime;
     private static final long CACHE_DURATION_MINUTES = 18;
+    private static final int MAX_ATTEMPTS = 15;
 
     @Autowired
     public AffiliateLink(TokenRepository tokenRepository, ObjectMapper objectMapper, IopClient iopClient, NotificationService notify) {
@@ -42,22 +43,28 @@ public class AffiliateLink {
     public List<String> generateAffiliateLink(String productUrlApp, String productUrlPc) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            notify.sendWarningMessage("Access token is null in line 40");
+            notify.sendWarningMessage("Access token is null in line 46");
             return null;
         }
         String allUrls = productUrlApp + "," + productUrlPc;
         AliexpressAffiliateLinkGenerateRequest request = getAffiliateLinkRequest(allUrls);
-        safeSleep(5000); // Sleep for 5 seconds before making the request
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
 
-        AliexpressAffiliateLinkGenerateResponse linkResponse = executeRequest(request, accessToken);
-        if (!responseIsValid(linkResponse)) {
-            safeSleep(7000); // Sleep for 7 seconds before retrying
-            linkResponse = executeRequest(request, accessToken);
+            AliexpressAffiliateLinkGenerateResponse linkResponse = executeRequest(request, accessToken);
+            if (isCallLimiteError(linkResponse)) {
+                notify.sendWarningMessage("Call Limit Exceeded, retrying");
+                safeSleep(2000); // Sleep for 2 seconds before retrying
+                continue;
+            }
+
+            if (responseIsValid(linkResponse)) {
+                return parseResponse(linkResponse);
+            }
+            break;
         }
 
-        if (responseIsValid(linkResponse)) {
-            return parseResponse(linkResponse);
-        }
         notify.sendWarningMessage("Failed to generate affiliate link after retrying.");
         return null;
     }
@@ -103,9 +110,19 @@ public class AffiliateLink {
                     .map(AffiliateLinkResponse.PromotionLinkItem::getPromotionLink)
                     .toList();
         } catch (Exception e) {
-            notify.sendErrorMessage("Error parsing JSON response in line 117: ", e);
+            notify.sendErrorMessage("Error parsing JSON response in line 113: ", e);
             return null;
         }
+    }
+
+    private boolean isCallLimiteError(AliexpressAffiliateLinkGenerateResponse responseApi) {
+        if (responseApi == null) return false;
+
+        if ("ApiCallLimit".equalsIgnoreCase(responseApi.getGopErrorCode())) return true;
+
+        return responseApi.getGopResponseBody() != null &&
+                (responseApi.getGopResponseBody().toLowerCase().contains("apicalllimit") ||
+                        responseApi.getGopResponseBody().toLowerCase().contains("api access frequency exceeds"));
     }
 
     private int getLinkPriority(AffiliateLinkResponse.PromotionLinkItem linkItem) {
@@ -122,7 +139,7 @@ public class AffiliateLink {
         try {
             return iopClient.execute(request, accessToken);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 137: ", e);
+            notify.sendErrorMessage("Error executing API request in line 142: ", e);
             return null;
         }
     }

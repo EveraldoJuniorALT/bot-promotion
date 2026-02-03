@@ -17,6 +17,7 @@ public class FetchShippingInfo {
     private final ObjectMapper objectMapper;
     private final IopClient iopClient;
     private final NotificationService notify;
+    private static final int MAX_ATTEMPTS = 15;
 
     @Autowired
     public FetchShippingInfo(ObjectMapper objectMapper, IopClient iopClient, NotificationService notify) {
@@ -31,16 +32,20 @@ public class FetchShippingInfo {
             return null;
         }
         IopRequest request = getIopRequest(product);
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            IopResponse responseApi = executeRequest(request);
+            if (isCallLimitError(responseApi)) {
+                notify.sendWarningMessage("Call Limit Exceeded, retrying");
+                safeSleep(2000);
+                continue;
+            }
 
-        safeSleep(3000);
-        IopResponse responseApi = executeRequest(request);
-        if (!responseIsValid(responseApi)) {
-            safeSleep(5000);
-            responseApi = executeRequest(request);
-        }
-
-        if (responseIsValid(responseApi)) {
-            return parseResponse(responseApi);
+            if (responseIsValid(responseApi)) {
+                return parseResponse(responseApi);
+            }
+            break;
         }
 
         notify.sendWarningMessage("Failed to fetch shipping info after retrying.");
@@ -57,25 +62,34 @@ public class FetchShippingInfo {
         }
     }
 
+    private boolean responseIsValid(IopResponse response) {
+        return response != null && response.isSuccess();
+    }
+
     private ShippingInfoResponse parseResponse(IopResponse response) {
         try {
             String jsonBody = response.getGopResponseBody();
             return objectMapper.readValue(jsonBody, ShippingInfoResponse.class);
         } catch (Exception e) {
-            notify.sendErrorMessage("Error parsing shipping info response in line 70: ", e);
+            notify.sendErrorMessage("Error parsing shipping info response in line 74: ", e);
             return null;
         }
     }
 
-    private boolean responseIsValid(IopResponse response) {
-        return response != null && response.isSuccess();
+    private boolean isCallLimitError(IopResponse responseApi) {
+        if (responseApi == null) return false;
+
+        if ("ApiCallLimit".equalsIgnoreCase(responseApi.getGopErrorCode())) return true;
+        return responseApi.getGopResponseBody() != null &&
+                (responseApi.getGopResponseBody().toLowerCase().contains("apicalllimit") ||
+                        responseApi.getGopResponseBody().toLowerCase().contains("api access frequency exceeds"));
     }
 
     private IopResponse executeRequest(IopRequest request) {
         try {
             return iopClient.execute(request, Protocol.TOP);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 56: ", e);
+            notify.sendErrorMessage("Error executing API request in line 92: ", e);
             return null;
         }
     }

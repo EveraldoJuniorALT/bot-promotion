@@ -28,6 +28,7 @@ public class FetchProductDetail {
     private String cachedAccessToken;
     private LocalDateTime tokenFetchTime;
     private static final long CACHE_DURATION_MINUTES = 18;
+    private static final int MAX_ATTEMPTS = 15;
 
     @Autowired
     public FetchProductDetail(IopClient iopClient, TokenRepository tokenRepository, ObjectMapper objectMapper, NotificationService notify) {
@@ -40,20 +41,24 @@ public class FetchProductDetail {
     public HotProductResponse productDetail(String productId) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            notify.sendWarningMessage("Access token is null in line 40");
+            notify.sendWarningMessage("Access token is null in line 44");
             return null;
         }
         AliexpressAffiliateProductdetailGetRequest request = getProductDetailRequest(productId);
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            AliexpressAffiliateProductdetailGetResponse responseApi = executeRequest(request, accessToken);
+            if (isCallLimitError(responseApi)) {
+                notify.sendWarningMessage("Call Limit Exceeded, retrying");
+                safeSleep(2000); // Sleep for 2 seconds before retrying
+                continue;
+            }
 
-        safeSleep(3000); // Sleep for 3 seconds before making the request
-        AliexpressAffiliateProductdetailGetResponse responseApi = executeRequest(request, accessToken);
-        if (!responseIsValid(responseApi)) {
-            safeSleep(5000); // Sleep for 5 seconds before retrying
-            responseApi = executeRequest(request, accessToken);
-        }
-
-        if (responseIsValid(responseApi)) {
-            return parseResponse(responseApi);
+            if (responseIsValid(responseApi)) {
+                return parseResponse(responseApi);
+            }
+            break;
         }
         notify.sendWarningMessage("Failed to fetch product details after retrying.");
         return null;
@@ -102,11 +107,21 @@ public class FetchProductDetail {
         }
     }
 
+    private boolean isCallLimitError(AliexpressAffiliateProductdetailGetResponse responseApi) {
+        if (responseApi == null) return false;
+
+        if ("ApiCallLimit".equalsIgnoreCase(responseApi.getGopErrorCode())) return true;
+
+        return responseApi.getGopResponseBody() != null &&
+                (responseApi.getGopResponseBody().toLowerCase().contains("apicalllimit") ||
+                        responseApi.getGopResponseBody().toLowerCase().contains("api access frequency exceeds"));
+    }
+
     private AliexpressAffiliateProductdetailGetResponse executeRequest(AliexpressAffiliateProductdetailGetRequest request, String accessToken) {
         try {
             return iopClient.execute(request, accessToken);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 109: ", e);
+            notify.sendErrorMessage("Error executing API request in line 124: ", e);
             return null;
         }
     }

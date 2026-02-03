@@ -28,6 +28,7 @@ public class AliexpressApiClient {
     private String cachedAccessToken;
     private LocalDateTime tokenFetchTime;
     private static final long CACHE_DURATION_MINUTES = 18;
+    private static final int MAX_ATTEMPTS = 15;
 
     @Autowired
     public AliexpressApiClient(IopClient iopClient, TokenRepository tokenRepository, ObjectMapper objectMapper, NotificationService notify) {
@@ -40,21 +41,27 @@ public class AliexpressApiClient {
     public HotProductResponse getHotProduct(int pageNo, String keyword) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            notify.sendWarningMessage("Access token is null in line 40");
+            notify.sendWarningMessage("Access token is null in line 44");
             return null;
         }
         AliexpressAffiliateHotproductQueryRequest request = getHotProductQueryRequest(pageNo, keyword);
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
 
-        safeSleep(3000); // Sleep for 3 seconds before making the request
-        AliexpressAffiliateHotproductQueryResponse responseApi = executeRequest(request, accessToken);
-        if (!responseIsValid(responseApi)) {
-            safeSleep(5000); // Sleep for 5 seconds before retrying
-            responseApi = executeRequest(request, accessToken);
+            AliexpressAffiliateHotproductQueryResponse responseApi = executeRequest(request, accessToken);
+            if (isCallLimitError(responseApi)) {
+                notify.sendWarningMessage("Call Limit Exceeded, retrying");
+                safeSleep(2000); // Sleep for 2 seconds before retrying
+                continue;
+            }
+
+            if (responseIsValid(responseApi)) {
+                return parseResponse(responseApi);
+            }
+            break;
         }
 
-        if (responseIsValid(responseApi)) {
-            return parseResponse(responseApi);
-        }
         notify.sendWarningMessage("Failed to fetch hot products after retrying.");
         return null;
     }
@@ -96,16 +103,26 @@ public class AliexpressApiClient {
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, HotProductResponse.class);
         } catch (Exception e) {
-            notify.sendErrorMessage("Error parsing JSON response in line 103: ", e);
+            notify.sendErrorMessage("Error parsing JSON response in line 106: ", e);
             return null;
         }
+    }
+
+    private boolean isCallLimitError(AliexpressAffiliateHotproductQueryResponse responseApi) {
+        if (responseApi == null) return false;
+
+        if ("ApiCallLimit".equalsIgnoreCase(responseApi.getGopErrorCode())) return true;
+
+        return responseApi.getGopResponseBody() != null &&
+                (responseApi.getGopResponseBody().toLowerCase().contains("apicalllimit") ||
+                        responseApi.getGopResponseBody().toLowerCase().contains("api access frequency exceeds"));
     }
 
     private AliexpressAffiliateHotproductQueryResponse executeRequest(AliexpressAffiliateHotproductQueryRequest request, String accessToken) {
         try {
             return iopClient.execute(request, accessToken);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 112: ", e);
+            notify.sendErrorMessage("Error executing API request in line 126: ", e);
             return null;
         }
     }

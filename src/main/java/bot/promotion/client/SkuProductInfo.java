@@ -16,6 +16,7 @@ public class SkuProductInfo {
     private final IopClient iopClient;
     private final ObjectMapper objectMapper;
     private final NotificationService notify;
+    private static final int MAX_ATTEMPTS = 15;
 
     public SkuProductInfo(IopClient iopClient, ObjectMapper objectMapper, NotificationService notify) {
         this.iopClient = iopClient;
@@ -26,17 +27,23 @@ public class SkuProductInfo {
     public SkuProductResponse getSkuProduct(String productId) {
         IopRequest request = getIopRequest(productId);
 
-        safeSleep(5000);
-        IopResponse responseApi = executeRequest(request);
+        int attempts = 0;
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
 
-        if (!responseIsValid(responseApi)) {
-            safeSleep(7000);
-            responseApi = executeRequest(request);
+            IopResponse responseApi = executeRequest(request);
+            if (isCallLimitError(responseApi)) {
+                notify.sendWarningMessage("Call limit exceeds, retrying");
+                safeSleep(2000);
+                continue;
+            }
+
+            if (responseIsValid(responseApi)) {
+                return parseResponse(responseApi);
+            }
+            break;
         }
 
-        if (responseIsValid(responseApi)) {
-            return parseResponse(responseApi);
-        }
         notify.sendWarningMessage("Failed to fetch SKU product details after retrying.");
         return null;
     }
@@ -50,9 +57,19 @@ public class SkuProductInfo {
             String jsonBody = responseApi.getGopResponseBody();
             return objectMapper.readValue(jsonBody, SkuProductResponse.class);
         } catch (Exception e) {
-            notify.sendErrorMessage("Error parsing SKU product response in line 53: ", e);
+            notify.sendErrorMessage("Error parsing SKU product response in line 60: ", e);
             return null;
         }
+    }
+
+    private boolean isCallLimitError(IopResponse responseApi) {
+        if (responseApi == null) return false;
+
+        if ("ApiCallLimit".equalsIgnoreCase(responseApi.getGopErrorCode())) return true;
+
+        return responseApi.getGopResponseBody() != null &&
+                (responseApi.getGopResponseBody().toLowerCase().contains("apicalllimit") ||
+                        responseApi.getGopResponseBody().toLowerCase().contains("api access frequency exceeds"));
     }
 
     private void safeSleep(long milliseconds) {
@@ -68,7 +85,7 @@ public class SkuProductInfo {
         try {
             return iopClient.execute(request, Protocol.TOP);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 71: ", e);
+            notify.sendErrorMessage("Error executing API request in line 88: ", e);
             return null;
         }
     }
