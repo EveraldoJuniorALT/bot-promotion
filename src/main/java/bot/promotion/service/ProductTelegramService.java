@@ -159,7 +159,7 @@ public class ProductTelegramService {
 
                 productRepository.save(product);
                 updateAveragesForVariant(product);
-                notify.sendWarningMessage("Product with ID " + productId + " updated successfully.");
+                notify.sendInfoMessage("Product with ID " + productId + " updated successfully.");
                 return null;
             });
         } catch (Exception e) {
