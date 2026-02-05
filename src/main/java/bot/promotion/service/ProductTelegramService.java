@@ -36,6 +36,7 @@ public class ProductTelegramService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final FetchShippingInfo shippingInfo;
     private final NotificationService notify;
+    private final ProductProcessedCache productProcessedCache;
 
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -49,7 +50,7 @@ public class ProductTelegramService {
     public ProductTelegramService(SkuProductInfo skuProductInfo, FetchProductDetail fetchProductDetail, @Lazy TelegramReceiveAndPost telegramReceiveAndPost,
                                   TelegramMessageFormatter telegramMessageFormatter, ProductUrlService urlService, ProductRepository productRepository,
                                   AliexpressCoinService aliexpressCoinService, FinalPriceService finalPriceService, TransactionTemplate transactionTemplate,
-                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo, @Lazy NotificationService notify) {
+                                  PriceHistoryRepository priceHistoryRepository, FetchShippingInfo shippingInfo, @Lazy NotificationService notify, ProductProcessedCache productProcessedCache) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
@@ -62,6 +63,7 @@ public class ProductTelegramService {
         this.priceHistoryRepository = priceHistoryRepository;
         this.shippingInfo = shippingInfo;
         this.notify = notify;
+        this.productProcessedCache = productProcessedCache;
     }
 
     public void processSaveProductUrl(String productId) {
@@ -74,38 +76,86 @@ public class ProductTelegramService {
     }
 
     private void createParameters(String productId, boolean shouldSave) {
+        HotProduct productDetail = fetchAndValidateProduct(productId);
+        if (productDetail == null) return;
+
+        ProductProcessedCache.CachedProductData cachedData = productProcessedCache.getCachedProduct(productId);
+
+        List<String> affiliateLinks = (cachedData != null) ? cachedData.getAffiliateLinks() : createAndValidateLinks(productId);
+        if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
+
+        BigDecimal coinPercentageDiscount = (cachedData != null) ? cachedData.getCoinPercentage() : extractAndValidateDiscount(affiliateLinks.getFirst());
+        if (coinPercentageDiscount == null) return;
+
+        /*
+         * Save affiliateLinks and coinPercentageDiscount in cache to avoid unnecessary calls to external services.
+         * This is especially useful for the coin percentage discount, as it requires a more complex and time-consuming process
+         */
+        saveCacheProduct(productId, affiliateLinks, coinPercentageDiscount);
+
+        List<SkuProduct> skuProducts = handlePersistence(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail, shouldSave);
+        if (skuProducts.isEmpty() && shouldSave) return;
+
+        if (skuProducts.isEmpty()) {
+            skuProducts = getOrBuildSku(productDetail);
+        }
+        publishAndUpdateProduct(productId, skuProducts, affiliateLinks, coinPercentageDiscount, productDetail);
+    }
+
+    private HotProduct fetchAndValidateProduct(String productId) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            notify.sendWarningMessage("Couldn't continue because no product detail found for product ID: " + productId);
-            return;
+            notify.sendWarningMessage("Process stopped: No product detail found for product ID: " + productId);
+            return null;
         }
+        return productDetail;
+    }
 
+    private List<String> createAndValidateLinks(String productId) {
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            notify.sendWarningMessage("Couldn't continue because no affiliate link could be created for product ID: " + productId);
-            return;
+            notify.sendWarningMessage("Process stopped: No affiliate created for product ID: " + productId);
+            return null;
         }
+        return affiliateLinks;
+    }
 
-        BigDecimal coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
-        if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) < 0) {
-            coinPercentageDiscount = coinService.processLink(affiliateLinks.getFirst());
+    private BigDecimal extractAndValidateDiscount(String link) {
+        BigDecimal coinPercentageDiscount = getDiscountWithRetry(link);
+        if (isDiscountInvalid(coinPercentageDiscount)) {
+            notify.sendWarningMessage("Process stopped: No coin percentage discount extracted for link: " + link);
+            return null;
         }
+        return coinPercentageDiscount;
+    }
 
-        if (coinPercentageDiscount == null || coinPercentageDiscount.compareTo(BigDecimal.ZERO) < 0) {
-            notify.sendWarningMessage("Couldn't continue because no coin percentage discount could be extracted for product ID: " + productId);
-            return;
+    private BigDecimal getDiscountWithRetry(String link) {
+        BigDecimal discount = coinService.processLink(link);
+        if (isDiscountInvalid(discount)) {
+            notify.sendInfoMessage("Retrying to extract coin discount");
+            discount = coinService.processLink(link);
         }
+        return discount;
+    }
 
-        List<SkuProduct> skuProducts = new ArrayList<>();
-        if (shouldSave) {
-            skuProducts = createEntity(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail);
-            if (skuProducts == null || skuProducts.isEmpty()) {
-                notify.sendWarningMessage("The product with ID " + productId + " couldn't continue and published because no product sku was found.");
-                return;
-            }
+    private boolean isDiscountInvalid(BigDecimal discount) {
+        return discount == null || discount.compareTo(BigDecimal.ZERO) < 0;
+    }
+
+    private List<SkuProduct> handlePersistence(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail, boolean shouldSave) {
+        if (!shouldSave) {
+            return Collections.emptyList();
         }
+        List<SkuProduct> skuProducts = createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+        if (skuProducts == null || skuProducts.isEmpty()) {
+            notify.sendWarningMessage("Process stopped: product ID: " + productId + " couldn't be saved because no SKU was found.");
+            return Collections.emptyList();
+        }
+        return skuProducts;
+    }
 
-        publishAndUpdateProduct(productId, skuProducts, affiliateLinks, coinPercentageDiscount, productDetail);
+    private void saveCacheProduct(String productId, List<String> affiliateLinks, BigDecimal coinPercentage) {
+        productProcessedCache.saveToCache(productId, affiliateLinks, coinPercentage);
     }
 
     private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
@@ -131,23 +181,20 @@ public class ProductTelegramService {
     }
 
     private void publishAndUpdateProduct(String productId, List<SkuProduct> skusToProcess, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
-        if (skusToProcess == null || skusToProcess.isEmpty()) skusToProcess = getOrBuildSku(productDetail);
-
-        if (skusToProcess.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 137: " + productId);
+        if (skusToProcess == null || skusToProcess.isEmpty()) {
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 183: " + productId);
             return;
         }
-        List<SkuProduct> allSkus = skusToProcess;
         try {
             transactionTemplate.execute(status -> {
 
                 Optional<Product> productOptional = productRepository.findByProductId(productId);
                 if (productOptional.isEmpty()) {
-                    chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, false);
+                    chooseBestProduct(productDetail, skusToProcess, affiliateLinks, coinPercentageDiscount, false);
                     notify.sendWarningMessage("Product with ID " + productId + " not found in the database to update after publishing.");
                     return null;
                 }
-                chooseBestProduct(productDetail, allSkus, affiliateLinks, coinPercentageDiscount, true);
+                chooseBestProduct(productDetail, skusToProcess, affiliateLinks, coinPercentageDiscount, true);
                 //isPriority is used to determine witch group the product will be published in on telegram.
 
                 Product product = productOptional.get();
@@ -155,7 +202,7 @@ public class ProductTelegramService {
                 product.setAffiliateLink(affiliateLinks.getFirst());
                 product.setDiscountCoinValue(coinPercentageDiscount);
                 product.setLastPostedOn(LocalDateTime.now());
-                forEachVariant(productDetail, allSkus, product, coinPercentageDiscount);
+                forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
                 productRepository.save(product);
                 updateAveragesForVariant(product);
