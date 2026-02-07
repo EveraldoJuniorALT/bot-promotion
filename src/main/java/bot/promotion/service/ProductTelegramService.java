@@ -161,7 +161,7 @@ public class ProductTelegramService {
     private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for product ID in line 114: " + productId);
+            notify.sendWarningMessage("No SKU to process for product ID in line 164: " + productId);
             return null;
         }
 
@@ -182,7 +182,7 @@ public class ProductTelegramService {
 
     private void publishAndUpdateProduct(String productId, List<SkuProduct> skusToProcess, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         if (skusToProcess == null || skusToProcess.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 183: " + productId);
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 185: " + productId);
             return;
         }
         try {
@@ -322,7 +322,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 278: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 325: " + productId);
         return null;
     }
 
@@ -335,7 +335,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 291: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 338: " + productId);
         return null;
     }
 
@@ -346,7 +346,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 302: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 349: " + productDetail.getProductId());
         return null;
     }
 
