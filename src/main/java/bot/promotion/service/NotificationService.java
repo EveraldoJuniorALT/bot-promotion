@@ -22,6 +22,7 @@ public class NotificationService {
         telegramReceiveAndPost.sendTextLogMessage("⚠️ AVISO: " + contextMessage);
     }
 
+    @Async
     public void sendInfoMessage(String contextMessage) {
         log.info(contextMessage);
         telegramReceiveAndPost.sendTextLogMessage("✅ INFO: " + contextMessage);
