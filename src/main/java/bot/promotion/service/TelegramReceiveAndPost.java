@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -144,6 +145,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         return userShared.getUserName() != null && !userShared.getUserName().isEmpty();
     }
 
+    @Async
     public void sendPhotoMessage(String photoUrl, String text, boolean isPriority) {
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setParseMode(ParseMode.HTML);
@@ -157,7 +159,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
-    public void sendTextMessage(String text, String chatIdFromTelegram, Integer replyToMessageId) {
+    private void sendTextMessage(String text, String chatIdFromTelegram, Integer replyToMessageId) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatIdFromTelegram);
         sendMessage.setText(text);
@@ -169,6 +171,7 @@ public class TelegramReceiveAndPost extends TelegramLongPollingBot {
         }
     }
 
+    @Async
     public void sendTextLogMessage(String text) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
