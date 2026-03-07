@@ -26,6 +26,11 @@ public class AliexpressCoinService {
     }
 
     public BigDecimal processLink(String link) {
+        if (link == null || link.isBlank()) {
+            notify.sendWarningMessage("Links is null or blank.");
+            return null;
+        }
+
         BigDecimal coinPercentage = executeProcess(link);
         if (coinPercentage != null) {
             return coinPercentage;
