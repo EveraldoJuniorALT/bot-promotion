@@ -25,7 +25,8 @@ public class Product {
     @Column(nullable = false, unique = true)
     private String productId;
     private LocalDateTime lastPostedOn;
-    private String affiliateLink;
+    private String affiliateLinkApp;
+    private String affiliateLinkPc;
     private BigDecimal DiscountCoinValue;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -51,5 +52,16 @@ public class Product {
     @Override
     public final int hashCode() {
         return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+    }
+
+    public List<String> getAffiliateLinks() {
+        List<String> links = new ArrayList<>();
+        if (affiliateLinkApp != null && !affiliateLinkApp.isBlank()) {
+            links.add(affiliateLinkApp);
+        }
+        if (affiliateLinkPc != null && !affiliateLinkPc.isBlank()) {
+            links.add(affiliateLinkPc);
+        }
+        return links;
     }
 }
