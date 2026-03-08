@@ -93,7 +93,7 @@ public class ProductTelegramService {
          */
         saveCacheProduct(productId, affiliateLinks, coinPercentageDiscount);
 
-        List<SkuProduct> skuProducts = handlePersistence(productId, affiliateLinks.getFirst(), coinPercentageDiscount, productDetail, shouldSave);
+        List<SkuProduct> skuProducts = handlePersistence(productId, affiliateLinks, coinPercentageDiscount, productDetail, shouldSave);
         if (skuProducts.isEmpty() && shouldSave) return;
 
         if (skuProducts.isEmpty()) {
@@ -142,11 +142,11 @@ public class ProductTelegramService {
         return discount == null || discount.compareTo(BigDecimal.ZERO) < 0;
     }
 
-    private List<SkuProduct> handlePersistence(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail, boolean shouldSave) {
+    private List<SkuProduct> handlePersistence(String productId, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, HotProduct productDetail, boolean shouldSave) {
         if (!shouldSave) {
             return Collections.emptyList();
         }
-        List<SkuProduct> skuProducts = createEntity(productId, affiliateLink, coinPercentageDiscount, productDetail);
+        List<SkuProduct> skuProducts = createEntity(productId, affiliateLinks, coinPercentageDiscount, productDetail);
         if (skuProducts == null || skuProducts.isEmpty()) {
             notify.sendWarningMessage("Process stopped: product ID: " + productId + " couldn't be saved because no SKU was found.");
             return Collections.emptyList();
@@ -158,7 +158,7 @@ public class ProductTelegramService {
         productProcessedCache.saveToCache(productId, affiliateLinks, coinPercentage);
     }
 
-    private List<SkuProduct> createEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
+    private List<SkuProduct> createEntity(String productId, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, HotProduct productDetail) {
         List<SkuProduct> skusToProcess = getOrBuildSku(productDetail);
         if (skusToProcess.isEmpty()) {
             notify.sendWarningMessage("No SKU to process for product ID in line 164: " + productId);
@@ -167,11 +167,11 @@ public class ProductTelegramService {
 
         try {
             transactionTemplate.execute(status -> {
-                Product product = createProductEntity(productId, affiliateLink, coinPercentageDiscount);
+                Product product = createProductEntity(productId, affiliateLinks, coinPercentageDiscount);
                 forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
                 productRepository.save(product);
-                updateAveragesForVariant(product);
+                updateAveragePriceForVariant(product);
                 return null;
             });
         } catch (Exception e) {
@@ -199,13 +199,14 @@ public class ProductTelegramService {
 
                 Product product = productOptional.get();
                 // Update the fields to always have the last published affiliate link and coin discount
-                product.setAffiliateLink(affiliateLinks.getFirst());
+                product.setAffiliateLinkApp(affiliateLinks.getFirst());
+                product.setAffiliateLinkPc(affiliateLinks.getLast());
                 product.setDiscountCoinValue(coinPercentageDiscount);
                 product.setLastPostedOn(LocalDateTime.now());
                 forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
                 productRepository.save(product);
-                updateAveragesForVariant(product);
+                updateAveragePriceForVariant(product);
                 notify.sendInfoMessage("Product with ID " + productId + " updated successfully.");
                 return null;
             });
@@ -214,14 +215,15 @@ public class ProductTelegramService {
         }
     }
 
-    private Product createProductEntity(String productId, String affiliateLink, BigDecimal coinPercentageDiscount) {
+    private Product createProductEntity(String productId, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         Product product = productRepository.findByProductId(productId)
                 .orElse(new Product());
 
         if (product.getProductId() == null) {
             product.setProductId(productId);
         }
-        product.setAffiliateLink(affiliateLink);
+        product.setAffiliateLinkApp(affiliateLinks.getFirst());
+        product.setAffiliateLinkPc(affiliateLinks.getLast());
         product.setDiscountCoinValue(coinPercentageDiscount);
         return product;
     }
@@ -298,16 +300,11 @@ public class ProductTelegramService {
         }
     }
 
-    private void updateAveragesForVariant(Product product) {
+    private void updateAveragePriceForVariant(Product product) {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-
         for (ProductVariant variant : product.getVariants()) {
-            BigDecimal average = priceHistoryRepository.calculateAveragePrice(variant.getId(), thirtyDaysAgo);
-
-            if (average != null) {
-                average = average.setScale(2, RoundingMode.HALF_UP);
-                variant.setAveragePrice(average);
-            }
+            BigDecimal average = priceHistoryRepository.calculateAveragePrice(variant.getId(), thirtyDaysAgo).setScale(2, RoundingMode.HALF_UP);
+            variant.setAveragePrice(average);
         }
         productRepository.save(product);
     }
