@@ -22,6 +22,9 @@ public class HotProduct {
     @JsonProperty("product_main_image_url")
     private String imageUrl;
 
+    @JsonProperty("promotion_link")
+    private String productLinkPc;
+
     @JsonProperty("product_title")
     private String productTitle;
 
