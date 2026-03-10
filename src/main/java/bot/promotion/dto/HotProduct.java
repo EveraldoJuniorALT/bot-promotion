@@ -22,7 +22,7 @@ public class HotProduct {
     @JsonProperty("product_main_image_url")
     private String imageUrl;
 
-    @JsonProperty("promotion_link")
+    @JsonProperty("product_detail_url")
     private String productLinkPc;
 
     @JsonProperty("product_title")
