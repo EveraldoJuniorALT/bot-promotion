@@ -29,18 +29,18 @@ public class ProductCacheFilter {
         this.finalPriceService = finalPriceService;
         this.notify = notify;
         this.clock = clock;
-        this.cacheTime = LocalDateTime.now(clock);
     }
 
     public List<HotProduct> compareAndFilter(List<HotProduct> newList) {
-        LocalDateTime now = LocalDateTime.now(clock);
         /*
         * First time initialization of the cache
         * If returns nothing on first run to avoid reaching
         * the API Request limit and being blocked for a few seconds.
         */
+        LocalDateTime now = LocalDateTime.now(clock);
         if (oldListProducts.isEmpty()) {
             updateCache(newList, now);
+            return newList;
         }
 
         if (Duration.between(cacheTime, now).compareTo(CACHE_DURATION) >= 0) {
@@ -79,7 +79,7 @@ public class ProductCacheFilter {
                 return false;
             }
 
-            BigDecimal difference = newPrice.subtract(oldPrice);
+            BigDecimal difference = oldPrice.subtract(newPrice);
             BigDecimal minDiscount = new BigDecimal("0.50");
 
             return difference.compareTo(minDiscount) >= 0;
