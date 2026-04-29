@@ -10,6 +10,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,11 +20,13 @@ public class CotacaoRequest {
     private final RestTemplate restTemplate;
     private final AtomicReference<Double> cachedCotacao = new AtomicReference<>();
     private final NotificationService notify;
+    private final Clock clock;
 
     @Autowired
-    public CotacaoRequest(RestTemplate restTemplate, NotificationService notify) {
+    public CotacaoRequest(RestTemplate restTemplate, NotificationService notify, Clock clock) {
         this.restTemplate = restTemplate;
         this.notify = notify;
+        this.clock = clock;
     }
 
     public Double getCachedCotacao() {
@@ -38,7 +41,7 @@ public class CotacaoRequest {
     @Scheduled(cron = "0 0 11 * * MON-FRI", zone = "America/Sao_Paulo")
     public void updateCotacao() {
         try {
-            String dataFormat = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd-yyyy"));
+            String dataFormat = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("MM-dd-yyyy"));
             String bcbApiUrl = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaAberturaOuIntermediario(codigoMoeda=@codigoMoeda,dataCotacao=@dataCotacao)?@codigoMoeda='USD'&@dataCotacao='%s'&$format=json&$select=cotacaoVenda";
             String urlFinal = String.format(bcbApiUrl, dataFormat);
 

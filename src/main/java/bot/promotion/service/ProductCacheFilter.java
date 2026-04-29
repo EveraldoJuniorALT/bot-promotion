@@ -1,12 +1,15 @@
 package bot.promotion.service;
 
 import bot.promotion.dto.HotProduct;
+import bot.promotion.dto.SkuProduct;
+import bot.promotion.util.ChooseBetterSku;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,9 +23,13 @@ public class ProductCacheFilter {
     private final FinalPriceService finalPriceService;
     private final NotificationService notify;
     private final Clock clock;
+
     private Map<String, HotProduct> oldListProducts = new HashMap<>();
+    private final Map<String, SkuProduct> oldListSkuProduct = new HashMap<>();
+    private static final Duration CACHE_DURATION_HOURS = Duration.ofHours(12);
+
     private LocalDateTime cacheTime;
-    private static final Duration CACHE_DURATION = Duration.ofHours(12);
+    private LocalDate cacheDateToday;
 
     @Autowired
     public ProductCacheFilter(FinalPriceService finalPriceService, NotificationService notify, Clock clock) {
@@ -31,49 +38,59 @@ public class ProductCacheFilter {
         this.clock = clock;
     }
 
-    public List<HotProduct> compareAndFilter(List<HotProduct> newList) {
-        /*
-        * First time initialization of the cache
-        * If returns nothing on first run to avoid reaching
-        * the API Request limit and being blocked for a few seconds.
-        */
+    public List<HotProduct> simpleFilter(List<HotProduct> products) {
         LocalDateTime now = LocalDateTime.now(clock);
         if (oldListProducts.isEmpty()) {
-            updateCache(newList, now);
-            return newList;
+            updateCache(products, now);
+            return products;
         }
 
-        if (Duration.between(cacheTime, now).compareTo(CACHE_DURATION) >= 0) {
-            updateCache(newList, now);
-            return newList;
+        if (cacheDateToday != now.toLocalDate() || Duration.between(cacheTime, now).compareTo(CACHE_DURATION_HOURS) >= 0) {
+            updateCache(products, now);
+            return products;
         }
 
         List<HotProduct> productsToProcess = new ArrayList<>();
-        for (HotProduct newProduct : newList) {
+        for (HotProduct newProduct : products) {
             HotProduct oldProduct = oldListProducts.get(newProduct.getProductId());
             if (oldProduct == null) {
                 productsToProcess.add(newProduct);
                 oldListProducts.put(newProduct.getProductId(), newProduct);
-                continue;
-            }
-
-            if (isCheaper(newProduct, oldProduct)) {
-                productsToProcess.add(newProduct);
             }
         }
         return productsToProcess;
     }
 
+    public SkuProduct compareAndFilter(HotProduct hotProduct, List<SkuProduct> skuAllProducts) {
+        List<SkuProduct> productsToProcess = new ArrayList<>();
+        for (SkuProduct newSkuProduct : skuAllProducts) {
+            SkuProduct oldSkuProduct = oldListSkuProduct.get(newSkuProduct.getSkuId());
+            if (oldSkuProduct == null) {
+                productsToProcess.add(newSkuProduct);
+                oldListSkuProduct.put(newSkuProduct.getSkuId(), newSkuProduct);
+                continue;
+            }
+
+            if (isCheaper(hotProduct, newSkuProduct, oldSkuProduct)) {
+                productsToProcess.add(newSkuProduct);
+            }
+        }
+        return ChooseBetterSku.chooseSkuProduct(productsToProcess);
+    }
+
     private void updateCache(List<HotProduct> newList, LocalDateTime currentTime) {
         this.oldListProducts = newList.stream()
                 .collect(Collectors.toMap(HotProduct::getProductId, Function.identity(), (p1, p2) -> p1));
+        this.oldListSkuProduct.clear();
         this.cacheTime = currentTime;
+        this.cacheDateToday = currentTime.toLocalDate();
     }
 
-    private boolean isCheaper(HotProduct newProduct, HotProduct oldProduct) {
+    private boolean isCheaper(HotProduct hotProduct, SkuProduct newSkuProduct, SkuProduct oldSkuProduct) {
         try {
-            BigDecimal newPrice = finalPriceService.calculateFinalPrice(newProduct, newProduct.getAffiliateLink());
-            BigDecimal oldPrice = finalPriceService.calculateFinalPrice(oldProduct, oldProduct.getAffiliateLink());
+            BigDecimal fixedCoinDiscount = new BigDecimal("1.00");
+            BigDecimal newPrice = finalPriceService.calculateFinalPrice(hotProduct, newSkuProduct, fixedCoinDiscount);
+            BigDecimal oldPrice = finalPriceService.calculateFinalPrice(hotProduct, oldSkuProduct, fixedCoinDiscount);
 
             if (newPrice.compareTo(oldPrice) >= 0) {
                 return false;

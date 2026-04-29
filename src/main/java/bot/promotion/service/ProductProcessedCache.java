@@ -2,19 +2,30 @@ package bot.promotion.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ProductProcessedCache {
     private final Map<String, CachedProductData> productCache = new ConcurrentHashMap<>();
+    private final Set<String> secondaryGroupCache = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Clock clock;
+
+    @Autowired
+    public ProductProcessedCache(Clock clock) {
+        this.clock = clock;
+    }
 
     @AllArgsConstructor
     @Getter
@@ -48,7 +59,15 @@ public class ProductProcessedCache {
         productCache.put(productId, new CachedProductData(
                 affiliateLinks,
                 coinPercentage,
-                LocalDateTime.now()
+                LocalDateTime.now(clock)
         ));
+    }
+
+    public boolean isSecondaryGroupProcessed(String productId) {
+        return secondaryGroupCache.contains(productId);
+    }
+
+    public void markSecondaryGroupAsProcessed(String productId) {
+        secondaryGroupCache.add(productId);
     }
 }

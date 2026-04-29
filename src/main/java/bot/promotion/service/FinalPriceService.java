@@ -36,43 +36,12 @@ public class FinalPriceService {
         this.notify = notify;
     }
 
-    /*
-     * Yes, I know there`s a lot of duplicate code here.
-     * I`ll refactor it soon.
-     * But, for now, I need to deliver the feature.
-     */
-
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
 
         if (skuProduct.getShipFromCountry() != null &&
                 !skuProduct.getShipFromCountry().isBlank() &&
                 skuProduct.getShipFromCountry().equals("BR")) {
-            return afterDiscount.setScale(2, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal limiteUSD = new BigDecimal("50.00");
-        BigDecimal cotacaoAtual = new BigDecimal(cotacao.getCachedCotacao());
-        BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
-
-        if (afterDiscount.compareTo(limiteBRL) <= 0) {
-            BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
-            BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
-            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
-            return finalPrice.setScale(2, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE_OVER);
-        BigDecimal icmsTax = afterDiscount.add(importDuty).multiply(ICMS_RATE);
-        BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
-
-        return finalPrice.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    public BigDecimal calculateFinalPrice(HotProduct product, String affiliateLink) {
-        BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, affiliateLink);
-
-        if (product.getOriginalCurrency().equals("BRL")) {
             return afterDiscount.setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -138,23 +107,6 @@ public class FinalPriceService {
                 .collect(Collectors.toList());
     }
 
-    /*
-     * I`m use this method when I don`t have skuProduct info
-     * So, I use only product info to get the coupon list
-     */
-    public List<Coupon> couponListAvailable(HotProduct product) {
-        Double valueProduct = Double.parseDouble(product.getSalePriceApp());
-        List<Coupon> couponsAvailable = couponRepository.findAllByMinimumSpendLessThanEqual(valueProduct);
-
-        if (couponsAvailable.isEmpty()) {
-            return List.of();
-        }
-
-        return couponsAvailable.stream()
-                .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
-                .collect(Collectors.toList());
-    }
-
     private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
 
         BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
@@ -191,7 +143,8 @@ public class FinalPriceService {
         if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) {
             extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
         }
-        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0)
+            return discountedProductValue;
 
         try {
             BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
@@ -203,49 +156,6 @@ public class FinalPriceService {
             return discountedProductValue;
         }
 
-    }
-
-    private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, String affiliateLink) {
-
-        BigDecimal valueProduct = new BigDecimal(product.getSalePriceApp());
-        double valuePromotionCode = 0.0;
-        if (product.getPromotionCode() != null && product.getPromotionCode().getCodeValue() != null) {
-            Matcher matcher = VALUE_PROMO_CODE.matcher(product.getPromotionCode().getCodeValue());
-            if (matcher.find()) {
-                String codeValue = matcher.group(1);
-                valuePromotionCode = Double.parseDouble(codeValue);
-            }
-        }
-
-        List<Coupon> couponsAvailable = couponListAvailable(product);
-        Optional<Coupon> coupons = couponsAvailable.stream()
-                .max(Comparator.comparing(Coupon::getDiscount));
-
-        BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
-
-        if (coupons.isPresent()) {
-            discountedProductValue = discountedProductValue.subtract(BigDecimal.valueOf(coupons.get().getDiscount()));
-        }
-
-        /*
-         * We guarantee a second attempt to obtain the extra discount coins percentage
-         * before returning the value without coin discount
-         */
-        BigDecimal extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
-        if (extraDiscountCoins == null) {
-            extraDiscountCoins = aliexpressCoinService.processLink(affiliateLink);
-        }
-        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
-
-        try {
-            BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
-                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-
-            return discountedProductValue.subtract(discountValueCoin);
-        } catch (ArithmeticException e) {
-            System.out.println("Error calculate coin discount: " + e.getMessage());
-            return discountedProductValue;
-        }
     }
 
     private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
@@ -278,7 +188,8 @@ public class FinalPriceService {
          * Returns the value without coin discount so the product can be published
          * allowing me to correct ir manually
          */
-        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0) return discountedProductValue;
+        if (extraDiscountCoins == null || extraDiscountCoins.compareTo(BigDecimal.ZERO) <= 0)
+            return discountedProductValue;
         try {
             BigDecimal discountValueCoin = valueProduct.multiply(extraDiscountCoins)
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);

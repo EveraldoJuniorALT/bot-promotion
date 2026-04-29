@@ -60,7 +60,7 @@ class ProductServiceTest {
         when(fetchHotProducts.getHotProduct(eq(1), eq("baseus"))).thenReturn(creatResponseApiProduct(creatMockProducts()));
         when(fetchHotProducts.getHotProduct(eq(2), eq("baseus"))).thenReturn(creatResponseApiProduct(Collections.emptyList()));
 
-        when(productCacheFilter.compareAndFilter(anyList())).thenReturn(creatMockProducts());
+        when(productCacheFilter.simpleFilter(anyList())).thenReturn(creatMockProducts());
 
         when(skuProductInfo.getSkuProduct("111")).thenReturn(creatResponseApiSkuProduct(creatMockSkuProducts()));
         when(skuProductInfo.getSkuProduct("222")).thenReturn(creatResponseApiSkuProduct(creatMockSkuProducts()));
@@ -90,7 +90,7 @@ class ProductServiceTest {
         when(fetchHotProducts.getHotProduct(eq(1), eq("baseus"))).thenReturn(creatResponseApiProduct(creatMockProducts()));
         when(fetchHotProducts.getHotProduct(eq(2), eq("baseus"))).thenReturn(creatResponseApiProduct(Collections.emptyList()));
 
-        when(productCacheFilter.compareAndFilter(anyList())).thenReturn(creatMockProducts());
+        when(productCacheFilter.simpleFilter(anyList())).thenReturn(creatMockProducts());
 
         when(skuProductInfo.getSkuProduct("111")).thenReturn(null);
         when(skuProductInfo.getSkuProduct("222")).thenReturn(null);
@@ -145,7 +145,7 @@ class ProductServiceTest {
 
         productService.fetchHotProducts();
 
-        verify(productCacheFilter, never()).compareAndFilter(anyList());
+        verify(productCacheFilter, never()).simpleFilter(anyList());
         verify(telegramReceiveAndPost, never()).sendPhotoMessage(anyString(), anyString(), anyBoolean());
     }
 

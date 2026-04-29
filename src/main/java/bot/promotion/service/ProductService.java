@@ -6,12 +6,23 @@ import bot.promotion.client.SkuProductInfo;
 import bot.promotion.config.BrandAndModel;
 import bot.promotion.config.BrandsAndModelsFilter;
 import bot.promotion.dto.*;
+import bot.promotion.entity.PriceHistory;
+import bot.promotion.entity.Product;
+import bot.promotion.entity.ProductVariant;
+import bot.promotion.repository.PriceHistoryRepository;
+import bot.promotion.repository.ProductRepository;
+import bot.promotion.validator.PublishEligibilityValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,19 +36,21 @@ public class ProductService {
     private final BrandsAndModelsFilter brandsModels;
     private final FetchShippingInfo shippingInfo;
     private final NotificationService notify;
-
-    private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
-    private static final Set<String> COMMON_COLORS = Set.of(
-            "black", "white", "red", "blue", "green", "yellow", "purple", "pink",
-            "orange", "brown", "gray", "grey", "silver", "gold", "beige", "navy",
-            "preto", "branco", "vermelho", "azul", "verde", "amarelo", "roxo", "rosa",
-            "laranja", "marrom", "cinza", "prata", "dourado", "bege"
-    );
+    private final ProductRepository productRepository;
+    private final FinalPriceService finalPriceService;
+    private final TransactionTemplate transactionTemplate;
+    private final PriceHistoryRepository priceHistoryRepository;
+    private final AliexpressCoinService aliexpressCoinService;
+    private final PublishEligibilityValidator publishEligibility;
+    private final ProductProcessedCache productProcessedCache;
+    private final Clock clock;
 
     @Autowired
     public ProductService(AliexpressApiClient fetchHotProducts, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
                           ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels,
-                          FetchShippingInfo shippingInfo, NotificationService notify) {
+                          FetchShippingInfo shippingInfo, NotificationService notify, PublishEligibilityValidator publishEligibility, ProductRepository productRepository,
+                          FinalPriceService finalPriceService, TransactionTemplate transactionTemplate, PriceHistoryRepository priceHistoryRepository,
+                          AliexpressCoinService aliexpressCoinService, ProductProcessedCache productProcessedCache, Clock clock) {
         this.fetchHotProducts = fetchHotProducts;
         this.telegramReceiveAndPost = telegramReceiveAndPost;
         this.formatter = formatter;
@@ -47,6 +60,14 @@ public class ProductService {
         this.brandsModels = brandsModels;
         this.shippingInfo = shippingInfo;
         this.notify = notify;
+        this.publishEligibility = publishEligibility;
+        this.productRepository = productRepository;
+        this.finalPriceService = finalPriceService;
+        this.transactionTemplate = transactionTemplate;
+        this.priceHistoryRepository = priceHistoryRepository;
+        this.aliexpressCoinService = aliexpressCoinService;
+        this.productProcessedCache = productProcessedCache;
+        this.clock = clock;
     }
 
     public void fetchHotProducts() {
@@ -59,7 +80,6 @@ public class ProductService {
             List<String> excludedModels = brands.getModelsExcluded();
 
             productsAfterFiltration.addAll(fetchProductsForKeyword(brand, acceptedModels, excludedModels));
-            safeSleep(5000);
         }
         processHotProducts(productsAfterFiltration);
     }
@@ -85,10 +105,8 @@ public class ProductService {
             }
             allProducts.addAll(responseApi.getRespResult().getResult().getProductsList());
             currentPage++;
-            safeSleep(4000);
         }
     }
-
 
     private void filterAllProducts(List<HotProduct> products, List<String> models, List<String> excludedModels) {
         Set<String> seenProductIds = new HashSet<>();
@@ -105,6 +123,7 @@ public class ProductService {
         if (product.getProductId() == null || product.getProductId().isBlank()) return true;
         if (product.getSalePriceApp() == null || product.getSalePriceApp().isBlank()) return true;
         if (product.getSkuId() == null || product.getSkuId().isBlank()) return true;
+        if (product.getImageUrl() == null || product.getImageUrl().isBlank()) return true;
 
         return isLowRated(product);
     }
@@ -139,19 +158,115 @@ public class ProductService {
     private void processHotProducts(List<HotProduct> products) {
         if (products == null || products.isEmpty()) return;
 
-        List<HotProduct> processedProducts = productCacheFilter.compareAndFilter(products);
+        List<HotProduct> filteredProducts = productCacheFilter.simpleFilter(products);
+        if (filteredProducts.isEmpty()) return;
 
-        if (!processedProducts.isEmpty()) {
-            fetchSkuInfo(processedProducts);
+        List<String> productIds = filteredProducts.stream()
+                .map(HotProduct::getProductId)
+                .toList();
+
+        List<Product> existingDbProducts = productRepository.findAllByProductIdIn(productIds);
+        Map<String, Product> dBProductsMap = existingDbProducts.stream()
+                .collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
+
+        List<HotProduct> dBExistingProducts = new ArrayList<>();
+        List<HotProduct> dBNoExistingProducts = new ArrayList<>();
+
+        for (HotProduct hp : filteredProducts) {
+            if (dBProductsMap.containsKey(hp.getProductId())) {
+                dBExistingProducts.add(hp);
+                continue;
+            }
+            dBNoExistingProducts.add(hp);
+        }
+
+        if (!dBExistingProducts.isEmpty()) {
+            processExistingDbProducts(dBExistingProducts, dBProductsMap);
+        }
+        if (!dBNoExistingProducts.isEmpty()) {
+            processNoExistingDbProducts(dBNoExistingProducts);
         }
     }
 
-    private void fetchSkuInfo(List<HotProduct> allProducts) {
-        for (HotProduct product : allProducts) {
-            List<SkuProduct> skuAllProducts = getOrBuildSku(product);
-            chooseBestProduct(product, skuAllProducts);
-            safeSleep(10000);
+    private void processExistingDbProducts(List<HotProduct> hotProductsDbExisting, Map<String, Product> dBProductsMap) {
+        for (HotProduct hotProduct : hotProductsDbExisting) {
+            Product productEntity = dBProductsMap.get(hotProduct.getProductId());
+            if (productEntity == null) continue;
+
+            List<SkuProduct> skuAllProduct = getOrBuildSku(hotProduct);
+            SkuProduct bestSkuProduct = productCacheFilter.compareAndFilter(hotProduct, skuAllProduct);
+            if (bestSkuProduct == null) continue;
+            processProductToPublish(hotProduct, productEntity, bestSkuProduct, skuAllProduct);
         }
+    }
+
+    private void processProductToPublish(HotProduct hotProduct, Product productEntity, SkuProduct bestSkuProduct, List<SkuProduct> skuAllProduct) {
+        boolean isPostedIn72hOrLess = postedIn72hOrLess(productEntity);
+        boolean isToday = isPostedToday(productEntity);
+        List<String> affiliateLinks = isPostedIn72hOrLess ?
+                productEntity.getAffiliateLinks() : urlService.createCoinUrl(hotProduct.getProductId());
+
+        BigDecimal discountCoinValue = isToday ?
+                productEntity.getDiscountCoinValue() : aliexpressCoinService.processLink(affiliateLinks.getFirst());
+        if (isDataValid(affiliateLinks, discountCoinValue)) return;
+
+        BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
+        BigDecimal currentPrice = finalPriceService.calculateFinalPrice(hotProduct, bestSkuProduct, discountCoinValue);
+        if (isDataPriceValid(averagePrice, currentPrice)) return;
+
+        boolean isEligible = publishEligibility.isEligibleForPublishing(currentPrice, averagePrice, isToday);
+        if (isEligible) {
+            publishProduct(hotProduct, bestSkuProduct, affiliateLinks, discountCoinValue, true);
+            updateProductInDatabase(hotProduct, skuAllProduct, affiliateLinks, discountCoinValue, productEntity);
+        }
+    }
+
+    // Checks if it was posted in the last 72 hours or less, to reduce requests
+    private boolean postedIn72hOrLess(Product productEntity) {
+        if (productEntity.getLastPostedOn() == null) return false;
+
+        LocalDateTime lastUpdate = productEntity.getLastPostedOn();
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        return Duration.between(lastUpdate, now).toHours() <= 72;
+    }
+
+    private boolean isPostedToday(Product productEntity) {
+        if (productEntity.getLastPostedOn() == null) return false;
+
+        LocalDate lastUpdate = productEntity.getLastPostedOn().toLocalDate();
+        LocalDate today = LocalDate.now(clock);
+
+        return lastUpdate != null && lastUpdate.equals(today);
+    }
+
+    /*
+     * This method is responsible for processing products that do not exist in the database.
+     * Only a few basic data are created, and they will be published in a secondary group,
+     * where it will be available for analysis whether they will be saved in the database,
+     * and at another time treated and published as a promotion.
+     * This is part of one of the rules and thus speeds up the processing of products.
+     */
+    private void processNoExistingDbProducts(List<HotProduct> hotProductsNoDbExisting) {
+        for (HotProduct hp : hotProductsNoDbExisting) {
+            if (productProcessedCache.isSecondaryGroupProcessed(hp.getProductId())) continue;
+
+            List<String> affiliateLinks = List.of(hp.getProductLinkPc());// Sets a default product link to avoid delays in processing products without much importance
+            SkuProduct skuProduct = buildSkuProduct(hp).getFirst();
+
+            BigDecimal discountCoinValue = new BigDecimal("1.00");// Sets a generic default value to avoid delays in processing products without much importance
+
+            publishProduct(hp, skuProduct, affiliateLinks, discountCoinValue, false);
+            productProcessedCache.markSecondaryGroupAsProcessed(hp.getProductId());
+        }
+    }
+
+    private boolean isDataValid(List<String> affiliateLinks, BigDecimal discountCoinValue) {
+        return affiliateLinks == null || affiliateLinks.isEmpty() || discountCoinValue == null;
+    }
+
+    private boolean isDataPriceValid(BigDecimal averagePrice, BigDecimal currentPrice) {
+        return averagePrice == null || currentPrice == null;
     }
 
     private List<SkuProduct> getOrBuildSku(HotProduct product) {
@@ -217,91 +332,85 @@ public class ProductService {
         return null;
     }
 
-    private void chooseBestProduct(HotProduct product, List<SkuProduct> skuAllProducts) {
-        if (skuAllProducts.isEmpty()) return;
+    private BigDecimal getAveragePrice(Product productEntity, SkuProduct bestSku) {
         /*
-        * I will implement more advanced logic here;
-        * for now, I'll pass false
-        */
-        if (skuAllProducts.size() == 1) {
-            publishProduct(product, skuAllProducts.getFirst(), false);
-            return;
-        }
-        Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
-                .collect(Collectors.groupingBy(
-                        SkuProduct -> simplifiedGroupkey(SkuProduct.getModelo()),
-                        Collectors.minBy(getBestVariantComparator())
-                ));
+         * First, it checks if a variant with the same SKU ID exists
+         * otherwise, it takes the lowest average price of all existing variants
+         */
+        ProductVariant variant = productEntity.getVariants().stream()
+                .filter(v -> v.getSkuId().equals(bestSku.getSkuId()))
+                .findFirst()
+                .orElse(null);
+        if (variant != null) return variant.getAveragePrice();
 
-        List<SkuProduct> bestVariantsOfEachModel = groupedByCheapest.values().stream()
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .sorted(getBestVariantComparator())
-                .toList();
-
-        if (bestVariantsOfEachModel.isEmpty()) return;
-
-        publishProduct(product, bestVariantsOfEachModel.getFirst(), true);
+        return productEntity.getVariants().stream()
+                .map(ProductVariant::getAveragePrice)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
     }
 
-    private String simplifiedGroupkey(String title) {
-        if (title == null || title.isBlank()) {
-            return "unknown";
-        }
-        Matcher matcher = FIRST_WORD_PATTERN.matcher(title);
-        if (!matcher.find()) {
-            return title;
-        }
-        String titleFormated = matcher.group(1).toLowerCase();
-
-        if (COMMON_COLORS.contains(titleFormated)) {
-            return "color";
-        }
-        return titleFormated;
-    }
-
-    private Comparator<SkuProduct> getBestVariantComparator() {
-        return Comparator
-                .comparingInt((SkuProduct sku) -> isShippedFromBrazil(sku) ? 0 : 1)
-                .thenComparingDouble(this::extractShippingFee)
-                .thenComparingDouble(this::extractSalePrice);
-    }
-
-    private double extractShippingFee(SkuProduct sku) {
-        if (sku.getShippingFees() == null || sku.getShippingFees().isEmpty()) return 0.0;
-        try {
-            return Double.parseDouble(sku.getShippingFees());
-        } catch (NumberFormatException e) {
-            return Double.MAX_VALUE;
-        }
-    }
-
-    private double extractSalePrice(SkuProduct sku) {
-        if (sku.getSalePrice() == null) return Double.MAX_VALUE;
-        try {
-            return Double.parseDouble(sku.getSalePrice());
-        } catch (NumberFormatException e) {
-            return Double.MAX_VALUE;
-        }
-    }
-
-    private boolean isShippedFromBrazil(SkuProduct sku) {
-        return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
-    }
-
-    private void publishProduct(HotProduct product, SkuProduct skuProduct, boolean isPriority) {
+    private void publishProduct(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
         telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
-                formatter.formatMessage(product, skuProduct,
-                        urlService.createCoinUrl(product.getProductId()), null), isPriority);
+                formatter.formatMessage(product, skuProduct, affiliateLinks, coinPercentageDiscount), isPriority);
     }
 
-    private void safeSleep(int milliseconds) {
+    private void updateProductInDatabase(HotProduct hotProduct, List<SkuProduct> skuProducts, List<String> affiliateLinks, BigDecimal discountCoinValue, Product productEntity) {
         try {
-            Thread.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            notify.sendWarningMessage("Thread was interrupted during sleep");
+            transactionTemplate.execute(status -> {
+
+                productEntity.setAffiliateLinkApp(affiliateLinks.getFirst());
+                productEntity.setAffiliateLinkPc(affiliateLinks.getLast());
+                productEntity.setDiscountCoinValue(discountCoinValue);
+                productEntity.setLastPostedOn(LocalDateTime.now());
+                forEachVariant(hotProduct, skuProducts, productEntity, discountCoinValue);
+
+                productRepository.save(productEntity);
+                updateAveragePriceForVariant(productEntity);
+                return null;
+            });
+        } catch (Exception e) {
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity for Product ID " + hotProduct.getProductId(), e);
         }
     }
 
+    private void forEachVariant(HotProduct hotProduct, List<SkuProduct> skuProducts, Product product, BigDecimal coinPercentageDiscount) {
+        for (SkuProduct sku : skuProducts) {
+            ProductVariant variant = createProductVariantEntity(product, sku);
+            variant.setSkuProperties(sku.getSkuProperties());
+
+            BigDecimal finalPrice = finalPriceService.calculateFinalPrice(hotProduct, sku, coinPercentageDiscount);
+            PriceHistory priceHistory = new PriceHistory();
+            priceHistory.setPrice(finalPrice);
+            priceHistory.setCapturedDate(LocalDateTime.now());
+
+            variant.addPriceHistory(priceHistory);
+            if (!product.getVariants().contains(variant)) {
+                product.addVariant(variant);
+            }
+        }
+    }
+
+    private ProductVariant createProductVariantEntity(Product product, SkuProduct sku) {
+        if (product.getVariants() == null) {
+            product.setVariants(new ArrayList<>());
+        }
+        return product.getVariants().stream()
+                .filter(v -> v.getSkuId().equals(sku.getSkuId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    ProductVariant variant = new ProductVariant();
+                    variant.setSkuId(sku.getSkuId());
+                    return variant;
+                });
+    }
+
+    private void updateAveragePriceForVariant(Product productEntity) {
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        for (ProductVariant productVariant : productEntity.getVariants()) {
+            BigDecimal averagePrice = priceHistoryRepository.calculateAveragePrice(productVariant.getId(), thirtyDaysAgo).setScale(2, RoundingMode.HALF_UP);
+            productVariant.setAveragePrice(averagePrice);
+        }
+        productRepository.save(productEntity);
+    }
 }
