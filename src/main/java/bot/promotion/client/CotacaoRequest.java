@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class CotacaoRequest {
     private final RestTemplate restTemplate;
-    private final AtomicReference<Double> cachedCotacao = new AtomicReference<>();
+    private final AtomicReference<BigDecimal> cachedCotacao = new AtomicReference<>();
     private final NotificationService notify;
     private final Clock clock;
 
@@ -29,7 +29,7 @@ public class CotacaoRequest {
         this.clock = clock;
     }
 
-    public Double getCachedCotacao() {
+    public BigDecimal getCachedCotacao() {
         return cachedCotacao.get();
     }
 
@@ -54,7 +54,7 @@ public class CotacaoRequest {
             Double novaCotacao = response.getValue().getFirst().getCotacao();
             BigDecimal cotacaoDecimal = BigDecimal.valueOf(novaCotacao);
             BigDecimal cotacaoRounded = cotacaoDecimal.setScale(2, RoundingMode.HALF_UP);
-            cachedCotacao.set(cotacaoRounded.doubleValue());
+            cachedCotacao.set(cotacaoRounded);
         } catch (Exception e) {
             notify.sendErrorMessage("Error fetching cotacao from BCB API in line 56: ", e);
         }

@@ -46,7 +46,7 @@ public class FinalPriceService {
         }
 
         BigDecimal limiteUSD = new BigDecimal("50.00");
-        BigDecimal cotacaoAtual = new BigDecimal(cotacao.getCachedCotacao());
+        BigDecimal cotacaoAtual = cotacao.getCachedCotacao();
         BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
 
         if (afterDiscount.compareTo(limiteBRL) <= 0) {
@@ -73,7 +73,7 @@ public class FinalPriceService {
         }
 
         BigDecimal limiteUSD = new BigDecimal("50.00");
-        BigDecimal cotacaoAtual = new BigDecimal(cotacao.getCachedCotacao());
+        BigDecimal cotacaoAtual = cotacao.getCachedCotacao();
         BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
 
         if (afterDiscount.compareTo(limiteBRL) <= 0) {
