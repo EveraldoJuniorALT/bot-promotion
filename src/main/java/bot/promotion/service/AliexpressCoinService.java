@@ -37,7 +37,7 @@ public class AliexpressCoinService {
         }
         try {
             coinPercentage = executeProcess(link);
-            return coinPercentage;
+            return coinPercentage != null ? coinPercentage : new BigDecimal("1");
         } catch (Exception e) {
             notify.sendErrorMessage("Error during retry: ", e);
             return null;

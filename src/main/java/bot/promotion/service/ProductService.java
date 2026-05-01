@@ -205,10 +205,11 @@ public class ProductService {
         boolean isToday = isPostedToday(productEntity);
         List<String> affiliateLinks = isPostedIn72hOrLess ?
                 productEntity.getAffiliateLinks() : urlService.createCoinUrl(hotProduct.getProductId());
+        if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
         BigDecimal discountCoinValue = isToday ?
                 productEntity.getDiscountCoinValue() : aliexpressCoinService.processLink(affiliateLinks.getFirst());
-        if (isDataValid(affiliateLinks, discountCoinValue)) return;
+        if (discountCoinValue == null) return;
 
         BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
         BigDecimal currentPrice = finalPriceService.calculateFinalPrice(hotProduct, bestSkuProduct, discountCoinValue);
@@ -259,10 +260,6 @@ public class ProductService {
             publishProduct(hp, skuProduct, affiliateLinks, discountCoinValue, false);
             productProcessedCache.markSecondaryGroupAsProcessed(hp.getProductId());
         }
-    }
-
-    private boolean isDataValid(List<String> affiliateLinks, BigDecimal discountCoinValue) {
-        return affiliateLinks == null || affiliateLinks.isEmpty() || discountCoinValue == null;
     }
 
     private boolean isDataPriceValid(BigDecimal averagePrice, BigDecimal currentPrice) {
@@ -362,7 +359,7 @@ public class ProductService {
                 productEntity.setAffiliateLinkApp(affiliateLinks.getFirst());
                 productEntity.setAffiliateLinkPc(affiliateLinks.getLast());
                 productEntity.setDiscountCoinValue(discountCoinValue);
-                productEntity.setLastPostedOn(LocalDate.now().atStartOfDay());
+                productEntity.setLastPostedOn(LocalDateTime.now());
                 forEachVariant(hotProduct, skuProducts, productEntity, discountCoinValue);
 
                 productRepository.save(productEntity);

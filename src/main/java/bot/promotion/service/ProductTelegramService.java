@@ -292,7 +292,7 @@ public class ProductTelegramService {
             BigDecimal finalPrice = finalPriceService.calculateFinalPrice(productDetail, sku, coinPercentageDiscount);
             PriceHistory priceHistory = new PriceHistory();
             priceHistory.setPrice(finalPrice);
-            priceHistory.setCapturedDate(LocalDate.now().atStartOfDay());
+            priceHistory.setCapturedDate(LocalDateTime.now());
 
             variant.addPriceHistory(priceHistory);
             if (!product.getVariants().contains(variant)) {
