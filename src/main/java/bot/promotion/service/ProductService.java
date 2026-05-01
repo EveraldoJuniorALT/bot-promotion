@@ -362,7 +362,7 @@ public class ProductService {
                 productEntity.setAffiliateLinkApp(affiliateLinks.getFirst());
                 productEntity.setAffiliateLinkPc(affiliateLinks.getLast());
                 productEntity.setDiscountCoinValue(discountCoinValue);
-                productEntity.setLastPostedOn(LocalDateTime.now());
+                productEntity.setLastPostedOn(LocalDate.now().atStartOfDay());
                 forEachVariant(hotProduct, skuProducts, productEntity, discountCoinValue);
 
                 productRepository.save(productEntity);

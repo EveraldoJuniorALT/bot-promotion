@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -202,7 +203,7 @@ public class ProductTelegramService {
                 product.setAffiliateLinkApp(affiliateLinks.getFirst());
                 product.setAffiliateLinkPc(affiliateLinks.getLast());
                 product.setDiscountCoinValue(coinPercentageDiscount);
-                product.setLastPostedOn(LocalDateTime.now());
+                product.setLastPostedOn(LocalDate.now().atStartOfDay());
                 forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
                 productRepository.save(product);
@@ -291,7 +292,7 @@ public class ProductTelegramService {
             BigDecimal finalPrice = finalPriceService.calculateFinalPrice(productDetail, sku, coinPercentageDiscount);
             PriceHistory priceHistory = new PriceHistory();
             priceHistory.setPrice(finalPrice);
-            priceHistory.setCapturedDate(LocalDateTime.now());
+            priceHistory.setCapturedDate(LocalDate.now().atStartOfDay());
 
             variant.addPriceHistory(priceHistory);
             if (!product.getVariants().contains(variant)) {
