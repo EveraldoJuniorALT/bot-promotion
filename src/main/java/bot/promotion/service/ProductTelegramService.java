@@ -170,12 +170,12 @@ public class ProductTelegramService {
                 Product product = createProductEntity(productId, affiliateLinks, coinPercentageDiscount);
                 forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
-                productRepository.save(product);
+                productRepository.saveAndFlush(product);
                 updateAveragePriceForVariant(product);
                 return null;
             });
         } catch (Exception e) {
-            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity for Product ID " + productId, e);
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity in line 178 for Product ID " + productId, e);
         }
         return skusToProcess;
     }
@@ -205,13 +205,13 @@ public class ProductTelegramService {
                 product.setLastPostedOn(LocalDateTime.now());
                 forEachVariant(productDetail, skusToProcess, product, coinPercentageDiscount);
 
-                productRepository.save(product);
+                productRepository.saveAndFlush(product);
                 updateAveragePriceForVariant(product);
                 notify.sendInfoMessage("Product with ID " + productId + " updated successfully.");
                 return null;
             });
         } catch (Exception e) {
-            notify.sendErrorMessage("CRITICAL ERROR: Failed to publish and save database entity for Product ID " + productId, e);
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to publish and save database entity in line 214 for Product ID " + productId, e);
         }
     }
 
@@ -303,8 +303,10 @@ public class ProductTelegramService {
     private void updateAveragePriceForVariant(Product product) {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         for (ProductVariant variant : product.getVariants()) {
-            BigDecimal average = priceHistoryRepository.calculateAveragePrice(variant.getId(), thirtyDaysAgo).setScale(2, RoundingMode.HALF_UP);
-            variant.setAveragePrice(average);
+            BigDecimal average = priceHistoryRepository.calculateAveragePrice(variant.getId(), thirtyDaysAgo);
+            if (average != null && average.compareTo(BigDecimal.ZERO) > 0) {
+                variant.setAveragePrice(average.setScale(2, RoundingMode.HALF_UP));
+            }
         }
         productRepository.save(product);
     }
@@ -319,7 +321,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 325: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 324: " + productId);
         return null;
     }
 
@@ -332,7 +334,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 338: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 337: " + productId);
         return null;
     }
 
@@ -343,7 +345,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 349: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 348: " + productDetail.getProductId());
         return null;
     }
 

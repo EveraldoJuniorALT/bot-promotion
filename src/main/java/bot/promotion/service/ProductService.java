@@ -362,12 +362,12 @@ public class ProductService {
                 productEntity.setLastPostedOn(LocalDateTime.now());
                 forEachVariant(hotProduct, skuProducts, productEntity, discountCoinValue);
 
-                productRepository.save(productEntity);
+                productRepository.saveAndFlush(productEntity);
                 updateAveragePriceForVariant(productEntity);
                 return null;
             });
         } catch (Exception e) {
-            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity for Product ID " + hotProduct.getProductId(), e);
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity in line 370 for Product ID " + hotProduct.getProductId(), e);
         }
     }
 
@@ -405,8 +405,10 @@ public class ProductService {
     private void updateAveragePriceForVariant(Product productEntity) {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         for (ProductVariant productVariant : productEntity.getVariants()) {
-            BigDecimal averagePrice = priceHistoryRepository.calculateAveragePrice(productVariant.getId(), thirtyDaysAgo).setScale(2, RoundingMode.HALF_UP);
-            productVariant.setAveragePrice(averagePrice);
+            BigDecimal averagePrice = priceHistoryRepository.calculateAveragePrice(productVariant.getId(), thirtyDaysAgo);
+            if (averagePrice != null && averagePrice.compareTo(BigDecimal.ZERO) > 0) {
+                productVariant.setAveragePrice(averagePrice.setScale(2, RoundingMode.HALF_UP));
+            }
         }
         productRepository.save(productEntity);
     }
