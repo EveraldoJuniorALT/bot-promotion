@@ -1,0 +1,39 @@
+package bot.promotion.aliexpress.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class AffiliateLinkResponse {
+
+    @JsonProperty("resp_result")
+    private MainResponse respResult;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MainResponse {
+        @JsonProperty("result")
+        private Result result;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Result {
+        @JsonProperty("promotion_links")
+        private List<PromotionLinkItem> promotionLinks;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PromotionLinkItem {
+        @JsonProperty("promotion_link")
+        private String promotionLink;
+
+        @JsonProperty("source_value")
+        private String sourceValue;
+    }
+}

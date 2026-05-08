@@ -1,6 +1,6 @@
 package bot.promotion.telegram.dispatcher;
 
-import bot.promotion.service.ProductUrlService;
+import bot.promotion.product.service.ProductUrlService;
 import bot.promotion.telegram.service.ProductTelegramService;
 import bot.promotion.telegram.service.TelegramSenderService;
 import org.springframework.context.annotation.Lazy;

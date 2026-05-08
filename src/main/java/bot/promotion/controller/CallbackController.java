@@ -1,6 +1,6 @@
 package bot.promotion.controller;
 
-import bot.promotion.service.AliexpressAuthService;
+import bot.promotion.aliexpress.service.AliexpressAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;

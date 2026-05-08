@@ -1,10 +1,10 @@
 package bot.promotion.telegram.formatter;
 
-import bot.promotion.dto.HotProduct;
-import bot.promotion.dto.SkuProduct;
-import bot.promotion.entity.Coupon;
-import bot.promotion.service.FinalPriceService;
-import bot.promotion.service.ProductUrlService;
+import bot.promotion.product.dto.HotProduct;
+import bot.promotion.product.dto.SkuProduct;
+import bot.promotion.product.entity.Coupon;
+import bot.promotion.product.service.FinalPriceService;
+import bot.promotion.product.service.ProductUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.User;
