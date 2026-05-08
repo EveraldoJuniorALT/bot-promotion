@@ -1,4 +1,4 @@
-package bot.promotion.service;
+package bot.promotion.telegram.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,23 +9,23 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class NotificationService {
-    private final TelegramReceiveAndPost telegramReceiveAndPost;
+    private final TelegramSenderService telegramSenderService;
 
     @Autowired
-    public NotificationService(@Lazy TelegramReceiveAndPost telegramReceiveAndPost) {
-        this.telegramReceiveAndPost = telegramReceiveAndPost;
+    public NotificationService(@Lazy TelegramSenderService telegramSenderService) {
+        this.telegramSenderService = telegramSenderService;
     }
 
     @Async
     public void sendWarningMessage(String contextMessage) {
         log.warn(contextMessage);
-        telegramReceiveAndPost.sendTextLogMessage("⚠️ AVISO: " + contextMessage);
+        telegramSenderService.sendTextLogMessage("⚠️ AVISO: " + contextMessage);
     }
 
     @Async
     public void sendInfoMessage(String contextMessage) {
         log.info(contextMessage);
-        telegramReceiveAndPost.sendTextLogMessage("✅ INFO: " + contextMessage);
+        telegramSenderService.sendTextLogMessage("✅ INFO: " + contextMessage);
     }
 
     @Async
@@ -33,6 +33,6 @@ public class NotificationService {
         log.error("CRITICAL ERROR [{}]: {}", contextMessage, e.getMessage(), e);
         String formatedMessage = String.format("🚨 ERRO CRITICO\n\nContexto: %s\nErro: %s",
                 contextMessage, e.getMessage());
-        telegramReceiveAndPost.sendTextLogMessage(formatedMessage);
+        telegramSenderService.sendTextLogMessage(formatedMessage);
     }
 }

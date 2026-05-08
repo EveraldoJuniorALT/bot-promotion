@@ -1,10 +1,13 @@
-package bot.promotion.service;
+package bot.promotion.telegram.formatter;
 
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.SkuProduct;
 import bot.promotion.entity.Coupon;
-import org.springframework.beans.factory.annotation.Autowired;
+import bot.promotion.service.FinalPriceService;
+import bot.promotion.service.ProductUrlService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -13,13 +16,10 @@ import java.util.stream.Collectors;
 
 
 @Component
+@RequiredArgsConstructor
 public class TelegramMessageFormatter {
     private final FinalPriceService finalPriceService;
-
-    @Autowired
-    public TelegramMessageFormatter(FinalPriceService finalPriceService) {
-        this.finalPriceService = finalPriceService;
-    }
+    private final ProductUrlService productUrlService;
 
     public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return null;
@@ -61,5 +61,23 @@ public class TelegramMessageFormatter {
         message.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
 
         return message.toString();
+    }
+
+    public String createDefaultMessageText(String productId, User userShared) {
+        StringBuilder stringBuilder = new StringBuilder();
+        List<String> links = productUrlService.createCoinUrl(productId);
+        if (links == null || links.isEmpty()) return null;
+
+        stringBuilder.append("@").append(verifyUserName(userShared) ? userShared.getUserName() : userShared.getFirstName()).append(" compartilhou um link:\n\n");
+        stringBuilder.append("Link com super descontos, apenas no APP❗❗").append("\n");
+        stringBuilder.append("✅ ").append(links.getFirst()).append("\n\n");
+        stringBuilder.append("Para pc, sem super descontos❗❗").append("\n");
+        stringBuilder.append("🔗 ").append(links.getLast()).append("\n\n");
+        stringBuilder.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
+        return stringBuilder.toString();
+    }
+
+    private boolean verifyUserName(User userShared) {
+        return userShared.getUserName() != null && !userShared.getUserName().isEmpty();
     }
 }
