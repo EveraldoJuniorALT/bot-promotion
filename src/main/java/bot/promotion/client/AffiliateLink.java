@@ -3,13 +3,13 @@ package bot.promotion.client;
 import bot.promotion.dto.AffiliateLinkResponse;
 import bot.promotion.entity.Token;
 import bot.promotion.repository.TokenRepository;
-import bot.promotion.service.NotificationService;
+import bot.promotion.telegram.service.NotificationService;
 import com.aliexpress.open.request.AliexpressAffiliateLinkGenerateRequest;
 import com.aliexpress.open.response.AliexpressAffiliateLinkGenerateResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.util.ApiException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class AffiliateLink {
     @Value("${aliexpress.app.tracking-id}")
     private String tracking;
@@ -31,14 +32,6 @@ public class AffiliateLink {
     private LocalDateTime tokenFetchTime;
     private static final long CACHE_DURATION_MINUTES = 18;
     private static final int MAX_ATTEMPTS = 15;
-
-    @Autowired
-    public AffiliateLink(TokenRepository tokenRepository, ObjectMapper objectMapper, IopClient iopClient, NotificationService notify) {
-        this.tokenRepository = tokenRepository;
-        this.objectMapper = objectMapper;
-        this.iopClient = iopClient;
-        this.notify = notify;
-    }
 
     public List<String> generateAffiliateLink(String productUrlApp, String productUrlPc) {
         String accessToken = getValidAccessToken();

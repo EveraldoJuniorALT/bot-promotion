@@ -3,6 +3,7 @@ package bot.promotion.service;
 import bot.promotion.dto.TokenResponse;
 import bot.promotion.entity.Token;
 import bot.promotion.repository.TokenRepository;
+import bot.promotion.telegram.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;

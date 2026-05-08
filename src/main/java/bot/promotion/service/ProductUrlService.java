@@ -1,7 +1,8 @@
 package bot.promotion.service;
 
 import bot.promotion.client.AffiliateLink;
-import org.springframework.beans.factory.annotation.Autowired;
+import bot.promotion.telegram.service.NotificationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -14,6 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class ProductUrlService {
     private static final Pattern PRODUCT_URL_PATTERN = Pattern.compile("/(?:item/)?(\\d+)\\.html");
     private static final Pattern PRODUCT_ID_PATTERN_TWO = Pattern.compile("[?&]productIds=(\\d+)");
@@ -23,12 +25,6 @@ public class ProductUrlService {
             .followRedirects(HttpClient.Redirect.ALWAYS) // Segue redirecionamentos
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-
-    @Autowired
-    public ProductUrlService(AffiliateLink affiliateLink, NotificationService notify) {
-        this.affiliateLink = affiliateLink;
-        this.notify = notify;
-    }
 
     public String processUrlAndExtractId(String shortUrl) {
         String finalUrl = findFinalUrl(shortUrl);

@@ -3,7 +3,7 @@ package bot.promotion.client;
 import bot.promotion.dto.HotProductResponse;
 import bot.promotion.entity.Token;
 import bot.promotion.repository.TokenRepository;
-import bot.promotion.service.NotificationService;
+import bot.promotion.telegram.service.NotificationService;
 import com.aliexpress.open.request.AliexpressAffiliateHotproductQueryRequest;
 import com.aliexpress.open.response.AliexpressAffiliateHotproductQueryResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;

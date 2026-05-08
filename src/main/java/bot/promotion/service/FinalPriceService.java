@@ -5,6 +5,7 @@ import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.SkuProduct;
 import bot.promotion.entity.Coupon;
 import bot.promotion.repository.CouponRepository;
+import bot.promotion.telegram.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

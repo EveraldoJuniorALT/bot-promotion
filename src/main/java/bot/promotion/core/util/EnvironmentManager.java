@@ -1,4 +1,4 @@
-package bot.promotion.util;
+package bot.promotion.core.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;

@@ -1,7 +1,7 @@
 package bot.promotion.client;
 
 import bot.promotion.dto.SkuProductResponse;
-import bot.promotion.service.NotificationService;
+import bot.promotion.telegram.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;

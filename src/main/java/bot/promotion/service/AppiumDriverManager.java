@@ -1,5 +1,6 @@
 package bot.promotion.service;
 
+import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import org.springframework.stereotype.Service;

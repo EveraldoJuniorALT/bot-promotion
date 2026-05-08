@@ -1,4 +1,4 @@
-package bot.promotion.config;
+package bot.promotion.core.config;
 
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopClientImpl;

@@ -1,4 +1,4 @@
-package bot.promotion.config;
+package bot.promotion.core.util;
 
 import lombok.Data;
 import org.springframework.context.annotation.Bean;

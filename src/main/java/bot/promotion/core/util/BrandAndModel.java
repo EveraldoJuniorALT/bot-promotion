@@ -1,4 +1,4 @@
-package bot.promotion.config;
+package bot.promotion.core.util;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

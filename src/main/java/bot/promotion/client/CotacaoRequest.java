@@ -1,7 +1,7 @@
 package bot.promotion.client;
 
 import bot.promotion.dto.BCBApiResponse;
-import bot.promotion.service.NotificationService;
+import bot.promotion.telegram.service.NotificationService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
