@@ -13,7 +13,7 @@ import bot.promotion.telegram.formatter.TelegramMessageFormatter;
 import bot.promotion.telegram.service.NotificationService;
 import bot.promotion.telegram.service.TelegramSenderService;
 import bot.promotion.validator.PublishEligibilityValidator;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,6 +25,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ProductService {
     private final AliexpressApiClient fetchHotProducts;
     private final TelegramSenderService telegramSenderService;
@@ -41,28 +42,6 @@ public class ProductService {
     private final ProductProcessedCache productProcessedCache;
     private final Clock clock;
     private final ProductPersistenceManager persistenceManager;
-
-    @Autowired
-    public ProductService(AliexpressApiClient fetchHotProducts, TelegramSenderService telegramSenderService, TelegramMessageFormatter formatter,
-                          ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels,
-                          FetchShippingInfo shippingInfo, NotificationService notify, PublishEligibilityValidator publishEligibility, FinalPriceService finalPriceService,
-                          AliexpressCoinService aliexpressCoinService, ProductProcessedCache productProcessedCache, Clock clock, ProductPersistenceManager persistenceManager) {
-        this.fetchHotProducts = fetchHotProducts;
-        this.telegramSenderService = telegramSenderService;
-        this.formatter = formatter;
-        this.urlService = urlService;
-        this.skuProductInfo = skuProductInfo;
-        this.productCacheFilter = productCacheFilter;
-        this.brandsModels = brandsModels;
-        this.shippingInfo = shippingInfo;
-        this.notify = notify;
-        this.publishEligibility = publishEligibility;
-        this.finalPriceService = finalPriceService;
-        this.aliexpressCoinService = aliexpressCoinService;
-        this.productProcessedCache = productProcessedCache;
-        this.clock = clock;
-        this.persistenceManager = persistenceManager;
-    }
 
     public void fetchHotProducts() {
         List<BrandAndModel> brandsAndModels = brandsModels.getBrandsAndModels();

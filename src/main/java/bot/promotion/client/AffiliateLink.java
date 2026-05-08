@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -28,6 +29,7 @@ public class AffiliateLink {
     private final TokenRepository tokenRepository;
     private final ObjectMapper objectMapper;
     private final NotificationService notify;
+    private final Clock clock;
     private String cachedAccessToken;
     private LocalDateTime tokenFetchTime;
     private static final long CACHE_DURATION_MINUTES = 18;
@@ -63,7 +65,7 @@ public class AffiliateLink {
     }
 
     private String getValidAccessToken() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         if (cachedAccessToken == null || tokenFetchTime == null || tokenFetchTime.isBefore(now.minusMinutes(CACHE_DURATION_MINUTES))) {
             try {
                 Optional<Token> tokenDB = tokenRepository.findById("aliexpress_token");

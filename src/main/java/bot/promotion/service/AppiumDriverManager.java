@@ -3,6 +3,7 @@ package bot.promotion.service;
 import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.net.MalformedURLException;
@@ -10,16 +11,11 @@ import java.net.URL;
 import java.time.Duration;
 
 @Service
+@RequiredArgsConstructor
 public class AppiumDriverManager {
     private final UiAutomator2Options options;
     private AndroidDriver driver;
     private final NotificationService notify;
-
-    public AppiumDriverManager(UiAutomator2Options options, NotificationService notify) {
-        this.options = options;
-        this.notify = notify;
-    }
-
     public synchronized AndroidDriver getDriver() {
         if (driver == null) {
             createDriver();
@@ -42,8 +38,7 @@ public class AppiumDriverManager {
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
         } catch (MalformedURLException e) {
             throw new RuntimeException("Invalid Appium server URL: " + e.getMessage());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println("Error creating Appium driver: " + e.getMessage());
             throw new RuntimeException("Failed to create Appium driver: " + e.getMessage(), e);
         }

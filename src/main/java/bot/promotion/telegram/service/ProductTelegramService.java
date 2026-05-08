@@ -68,7 +68,7 @@ public class ProductTelegramService {
 
         List<SkuProduct> skuProducts = getOrBuildSku(productDetail);
         if (skuProducts == null || skuProducts.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 101: " + productId);
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 71: " + productId);
             return;
         }
 
@@ -184,7 +184,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 324: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 187: " + productId);
         return null;
     }
 
@@ -197,7 +197,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 337: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 200: " + productId);
         return null;
     }
 
@@ -208,7 +208,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 348: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 211: " + productDetail.getProductId());
         return null;
     }
 

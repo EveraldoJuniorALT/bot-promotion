@@ -3,10 +3,10 @@ package bot.promotion.service;
 import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
+import lombok.RequiredArgsConstructor;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,16 +15,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class AliexpressCoinService {
     private final AppiumDriverManager driverManager;
     private final NotificationService notify;
     private static final Pattern EXTRACT_DISCOUNT_PATTERN = Pattern.compile("(\\d+)%");
-
-    @Autowired
-    public AliexpressCoinService(AppiumDriverManager driverManager, NotificationService notify) {
-        this.driverManager = driverManager;
-        this.notify = notify;
-    }
 
     public BigDecimal processLink(String link) {
         if (link == null || link.isBlank()) {

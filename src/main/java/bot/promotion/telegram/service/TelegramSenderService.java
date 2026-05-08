@@ -30,7 +30,7 @@ public class TelegramSenderService {
         try {
             bot.execute(deleteMessage);
         } catch (TelegramApiException e) {
-            notify.sendErrorMessage("Error deleting user message in line 125: ", e);
+            notify.sendErrorMessage("Error deleting user message in line 33: ", e);
         }
     }
 

@@ -9,7 +9,7 @@ import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
 import com.global.iop.api.IopResponse;
 import com.global.iop.domain.Protocol;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -17,6 +17,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class AliexpressAuthService {
 
     @Value("${aliexpress.api.name-url}")
@@ -30,14 +31,6 @@ public class AliexpressAuthService {
     private final IopClient iopClient;
     private final NotificationService notify;
 
-    @Autowired
-    public AliexpressAuthService(ObjectMapper objectMapper, TokenRepository tokenRepository, IopClient iopClient, NotificationService notify) {
-        this.iopClient = iopClient;
-        this.objectMapper = objectMapper;
-        this.tokenRepository = tokenRepository;
-        this.notify = notify;
-    }
-
     public void exchangeCodeForToken(String code) {
         try {
             IopRequest iopRequest = new IopRequest();
@@ -46,7 +39,7 @@ public class AliexpressAuthService {
 
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
             if (!response.isSuccess()) {
-                notify.sendWarningMessage("Answer from API is null in line 48 on AliexpressAuthService.exchangeCodeForToken");
+                notify.sendWarningMessage("Answer from API is null in line 49 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
 
@@ -63,9 +56,9 @@ public class AliexpressAuthService {
             tokenRepository.save(tokenEntity);
             System.out.println("Saved in DB successfully");
         } catch (HttpClientErrorException e) {
-            notify.sendErrorMessage("Http error when calling Aliexpress API, Line 65 on AliexpressAuthService.exchangeCodeForToken: ", e);
+            notify.sendErrorMessage("Http error when calling Aliexpress API, Line 66 on AliexpressAuthService.exchangeCodeForToken: ", e);
         } catch (Exception e) {
-            notify.sendErrorMessage("Error in line 67 on AliexpressAuthService.exchangeCodeForToken ", e);
+            notify.sendErrorMessage("Error in line 68 on AliexpressAuthService.exchangeCodeForToken ", e);
         }
     }
 
@@ -101,9 +94,9 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            notify.sendErrorMessage("Http error when calling Ali API in line 103 on AliexpressAuthService.refreshToken: ", e);
+            notify.sendErrorMessage("Http error when calling Ali API in line 104 on AliexpressAuthService.refreshToken: ", e);
         } catch (Exception e) {
-            notify.sendErrorMessage("Error in line 105 on AliexpressAuthService.refreshToken", e);
+            notify.sendErrorMessage("Error in line 106 on AliexpressAuthService.refreshToken", e);
         }
     }
 }

@@ -2,7 +2,7 @@ package bot.promotion.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,15 +17,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@RequiredArgsConstructor
 public class ProductProcessedCache {
     private final Map<String, CachedProductData> productCache = new ConcurrentHashMap<>();
     private final Set<String> secondaryGroupCache = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Clock clock;
-
-    @Autowired
-    public ProductProcessedCache(Clock clock) {
-        this.clock = clock;
-    }
 
     @AllArgsConstructor
     @Getter

@@ -6,7 +6,7 @@ import bot.promotion.dto.SkuProduct;
 import bot.promotion.entity.Coupon;
 import bot.promotion.repository.CouponRepository;
 import bot.promotion.telegram.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class FinalPriceService {
     private final CouponRepository couponRepository;
     private static final BigDecimal IMPORT_DUTY_RATE = new BigDecimal("0.20"); // 20% import duty rate for <= $50 products
@@ -28,14 +29,6 @@ public class FinalPriceService {
     private final CotacaoRequest cotacao;
     private final AliexpressCoinService aliexpressCoinService;
     private final NotificationService notify;
-
-    @Autowired
-    public FinalPriceService(CouponRepository couponRepository, CotacaoRequest cotacaoRequest, AliexpressCoinService aliexpressCoinService, NotificationService notify) {
-        this.couponRepository = couponRepository;
-        this.cotacao = cotacaoRequest;
-        this.aliexpressCoinService = aliexpressCoinService;
-        this.notify = notify;
-    }
 
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
