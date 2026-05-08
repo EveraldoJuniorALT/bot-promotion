@@ -44,8 +44,10 @@ public class ProductPersistenceManager {
 
     @Async
     @Transactional
-    public void updateProduct(Product product, HotProduct hotProduct, List<SkuProduct> skuProducts, List<String> affiliateLinks, BigDecimal discountCoinValue) {
+    public void updateProduct(String productId, HotProduct hotProduct, List<SkuProduct> skuProducts, List<String> affiliateLinks, BigDecimal discountCoinValue) {
         try {
+            Product product = findProductById(productId).orElseThrow(() -> new IllegalStateException("Product with ID " + productId + " not found in database"));
+
             product.setAffiliateLinkApp(affiliateLinks.getFirst());
             product.setAffiliateLinkPc(affiliateLinks.getLast());
             product.setDiscountCoinValue(discountCoinValue);

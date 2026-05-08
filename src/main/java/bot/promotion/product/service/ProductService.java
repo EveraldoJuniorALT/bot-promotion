@@ -197,7 +197,7 @@ public class ProductService {
         boolean isEligible = publishEligibility.isEligibleForPublishing(currentPrice, averagePrice, isToday);
         if (isEligible) {
             publishProduct(hotProduct, bestSkuProduct, affiliateLinks, discountCoinValue, true);
-            persistenceManager.updateProduct(productEntity, hotProduct, skuAllProduct, affiliateLinks, discountCoinValue);
+            persistenceManager.updateProduct(hotProduct.getProductId(), hotProduct, skuAllProduct, affiliateLinks, discountCoinValue);
         }
     }
 

@@ -9,7 +9,6 @@ import bot.promotion.aliexpress.dto.SkuProductResponse;
 import bot.promotion.product.dto.HotProduct;
 import bot.promotion.product.dto.ShippingInfo;
 import bot.promotion.product.dto.SkuProduct;
-import bot.promotion.product.entity.Product;
 import bot.promotion.aliexpress.service.AliexpressCoinService;
 import bot.promotion.product.service.ProductProcessedCache;
 import bot.promotion.product.service.ProductUrlService;
@@ -133,8 +132,7 @@ public class ProductTelegramService {
         publishProduct(productDetail, betterSku, affiliateLinks, coinPercentageDiscount, existsInDb);
 
         if (existsInDb) {
-            Optional<Product> product = persistenceManager.findProductById(productId);
-            product.ifPresent(value -> persistenceManager.updateProduct(value, productDetail, skuProducts, affiliateLinks, coinPercentageDiscount));
+            persistenceManager.updateProduct(productId, productDetail, skuProducts, affiliateLinks, coinPercentageDiscount);
         }
     }
 
