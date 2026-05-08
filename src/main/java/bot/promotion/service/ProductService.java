@@ -3,21 +3,20 @@ package bot.promotion.service;
 import bot.promotion.client.AliexpressApiClient;
 import bot.promotion.client.FetchShippingInfo;
 import bot.promotion.client.SkuProductInfo;
-import bot.promotion.config.BrandAndModel;
-import bot.promotion.config.BrandsAndModelsFilter;
+import bot.promotion.core.util.BrandAndModel;
+import bot.promotion.core.util.BrandsAndModelsFilter;
 import bot.promotion.dto.*;
-import bot.promotion.entity.PriceHistory;
 import bot.promotion.entity.Product;
 import bot.promotion.entity.ProductVariant;
-import bot.promotion.repository.PriceHistoryRepository;
-import bot.promotion.repository.ProductRepository;
+import bot.promotion.service.persistence.ProductPersistenceManager;
+import bot.promotion.telegram.formatter.TelegramMessageFormatter;
+import bot.promotion.telegram.service.NotificationService;
+import bot.promotion.telegram.service.TelegramSenderService;
 import bot.promotion.validator.PublishEligibilityValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -28,7 +27,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProductService {
     private final AliexpressApiClient fetchHotProducts;
-    private final TelegramReceiveAndPost telegramReceiveAndPost;
+    private final TelegramSenderService telegramSenderService;
     private final TelegramMessageFormatter formatter;
     private final ProductUrlService urlService;
     private final SkuProductInfo skuProductInfo;
@@ -36,23 +35,20 @@ public class ProductService {
     private final BrandsAndModelsFilter brandsModels;
     private final FetchShippingInfo shippingInfo;
     private final NotificationService notify;
-    private final ProductRepository productRepository;
     private final FinalPriceService finalPriceService;
-    private final TransactionTemplate transactionTemplate;
-    private final PriceHistoryRepository priceHistoryRepository;
     private final AliexpressCoinService aliexpressCoinService;
     private final PublishEligibilityValidator publishEligibility;
     private final ProductProcessedCache productProcessedCache;
     private final Clock clock;
+    private final ProductPersistenceManager persistenceManager;
 
     @Autowired
-    public ProductService(AliexpressApiClient fetchHotProducts, TelegramReceiveAndPost telegramReceiveAndPost, TelegramMessageFormatter formatter,
+    public ProductService(AliexpressApiClient fetchHotProducts, TelegramSenderService telegramSenderService, TelegramMessageFormatter formatter,
                           ProductUrlService urlService, SkuProductInfo skuProductInfo, ProductCacheFilter productCacheFilter, BrandsAndModelsFilter brandsModels,
-                          FetchShippingInfo shippingInfo, NotificationService notify, PublishEligibilityValidator publishEligibility, ProductRepository productRepository,
-                          FinalPriceService finalPriceService, TransactionTemplate transactionTemplate, PriceHistoryRepository priceHistoryRepository,
-                          AliexpressCoinService aliexpressCoinService, ProductProcessedCache productProcessedCache, Clock clock) {
+                          FetchShippingInfo shippingInfo, NotificationService notify, PublishEligibilityValidator publishEligibility, FinalPriceService finalPriceService,
+                          AliexpressCoinService aliexpressCoinService, ProductProcessedCache productProcessedCache, Clock clock, ProductPersistenceManager persistenceManager) {
         this.fetchHotProducts = fetchHotProducts;
-        this.telegramReceiveAndPost = telegramReceiveAndPost;
+        this.telegramSenderService = telegramSenderService;
         this.formatter = formatter;
         this.urlService = urlService;
         this.skuProductInfo = skuProductInfo;
@@ -61,13 +57,11 @@ public class ProductService {
         this.shippingInfo = shippingInfo;
         this.notify = notify;
         this.publishEligibility = publishEligibility;
-        this.productRepository = productRepository;
         this.finalPriceService = finalPriceService;
-        this.transactionTemplate = transactionTemplate;
-        this.priceHistoryRepository = priceHistoryRepository;
         this.aliexpressCoinService = aliexpressCoinService;
         this.productProcessedCache = productProcessedCache;
         this.clock = clock;
+        this.persistenceManager = persistenceManager;
     }
 
     public void fetchHotProducts() {
@@ -165,9 +159,11 @@ public class ProductService {
                 .map(HotProduct::getProductId)
                 .toList();
 
-        List<Product> existingDbProducts = productRepository.findAllByProductIdIn(productIds);
-        Map<String, Product> dBProductsMap = existingDbProducts.stream()
-                .collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
+        List<Product> existingDbProducts = persistenceManager.findProductsBatch(productIds);
+        Map<String, Product> dBProductsMap = new HashMap<>();
+        if (!existingDbProducts.isEmpty()) {
+            dBProductsMap = existingDbProducts.stream().collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
+        }
 
         List<HotProduct> dBExistingProducts = new ArrayList<>();
         List<HotProduct> dBNoExistingProducts = new ArrayList<>();
@@ -203,12 +199,10 @@ public class ProductService {
     private void processProductToPublish(HotProduct hotProduct, Product productEntity, SkuProduct bestSkuProduct, List<SkuProduct> skuAllProduct) {
         boolean isPostedIn72hOrLess = postedIn72hOrLess(productEntity);
         boolean isToday = isPostedToday(productEntity);
-        List<String> affiliateLinks = isPostedIn72hOrLess ?
-                productEntity.getAffiliateLinks() : urlService.createCoinUrl(hotProduct.getProductId());
+        List<String> affiliateLinks = isPostedIn72hOrLess ? productEntity.getAffiliateLinks() : urlService.createCoinUrl(hotProduct.getProductId());
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
-        BigDecimal discountCoinValue = isToday ?
-                productEntity.getDiscountCoinValue() : aliexpressCoinService.processLink(affiliateLinks.getFirst());
+        BigDecimal discountCoinValue = isToday ? productEntity.getDiscountCoinValue() : aliexpressCoinService.processLink(affiliateLinks.getFirst());
         if (discountCoinValue == null) return;
 
         BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
@@ -218,7 +212,7 @@ public class ProductService {
         boolean isEligible = publishEligibility.isEligibleForPublishing(currentPrice, averagePrice, isToday);
         if (isEligible) {
             publishProduct(hotProduct, bestSkuProduct, affiliateLinks, discountCoinValue, true);
-            updateProductInDatabase(hotProduct, skuAllProduct, affiliateLinks, discountCoinValue, productEntity);
+            persistenceManager.updateProduct(productEntity, hotProduct, skuAllProduct, affiliateLinks, discountCoinValue);
         }
     }
 
@@ -348,68 +342,7 @@ public class ProductService {
     }
 
     private void publishProduct(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
-        telegramReceiveAndPost.sendPhotoMessage(skuProduct.getSkuImage(),
+        telegramSenderService.sendPhotoMessage(skuProduct.getSkuImage(),
                 formatter.formatMessage(product, skuProduct, affiliateLinks, coinPercentageDiscount), isPriority);
-    }
-
-    private void updateProductInDatabase(HotProduct hotProduct, List<SkuProduct> skuProducts, List<String> affiliateLinks, BigDecimal discountCoinValue, Product productEntity) {
-        try {
-            transactionTemplate.execute(status -> {
-
-                productEntity.setAffiliateLinkApp(affiliateLinks.getFirst());
-                productEntity.setAffiliateLinkPc(affiliateLinks.getLast());
-                productEntity.setDiscountCoinValue(discountCoinValue);
-                productEntity.setLastPostedOn(LocalDateTime.now());
-                forEachVariant(hotProduct, skuProducts, productEntity, discountCoinValue);
-
-                productRepository.saveAndFlush(productEntity);
-                updateAveragePriceForVariant(productEntity);
-                return null;
-            });
-        } catch (Exception e) {
-            notify.sendErrorMessage("CRITICAL ERROR: Failed to save database entity in line 370 for Product ID " + hotProduct.getProductId(), e);
-        }
-    }
-
-    private void forEachVariant(HotProduct hotProduct, List<SkuProduct> skuProducts, Product product, BigDecimal coinPercentageDiscount) {
-        for (SkuProduct sku : skuProducts) {
-            ProductVariant variant = createProductVariantEntity(product, sku);
-            variant.setSkuProperties(sku.getSkuProperties());
-
-            BigDecimal finalPrice = finalPriceService.calculateFinalPrice(hotProduct, sku, coinPercentageDiscount);
-            PriceHistory priceHistory = new PriceHistory();
-            priceHistory.setPrice(finalPrice);
-            priceHistory.setCapturedDate(LocalDateTime.now());
-
-            variant.addPriceHistory(priceHistory);
-            if (!product.getVariants().contains(variant)) {
-                product.addVariant(variant);
-            }
-        }
-    }
-
-    private ProductVariant createProductVariantEntity(Product product, SkuProduct sku) {
-        if (product.getVariants() == null) {
-            product.setVariants(new ArrayList<>());
-        }
-        return product.getVariants().stream()
-                .filter(v -> v.getSkuId().equals(sku.getSkuId()))
-                .findFirst()
-                .orElseGet(() -> {
-                    ProductVariant variant = new ProductVariant();
-                    variant.setSkuId(sku.getSkuId());
-                    return variant;
-                });
-    }
-
-    private void updateAveragePriceForVariant(Product productEntity) {
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        for (ProductVariant productVariant : productEntity.getVariants()) {
-            BigDecimal averagePrice = priceHistoryRepository.calculateAveragePrice(productVariant.getId(), thirtyDaysAgo);
-            if (averagePrice != null && averagePrice.compareTo(BigDecimal.ZERO) > 0) {
-                productVariant.setAveragePrice(averagePrice.setScale(2, RoundingMode.HALF_UP));
-            }
-        }
-        productRepository.save(productEntity);
     }
 }

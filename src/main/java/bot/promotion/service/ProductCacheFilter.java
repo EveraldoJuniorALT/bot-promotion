@@ -2,8 +2,9 @@ package bot.promotion.service;
 
 import bot.promotion.dto.HotProduct;
 import bot.promotion.dto.SkuProduct;
-import bot.promotion.util.ChooseBetterSku;
-import org.springframework.beans.factory.annotation.Autowired;
+import bot.promotion.service.domain.ChooseBetterSku;
+import bot.promotion.telegram.service.NotificationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -19,10 +20,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class ProductCacheFilter {
     private final FinalPriceService finalPriceService;
     private final NotificationService notify;
     private final Clock clock;
+    private final ChooseBetterSku chooseBetterSku;
 
     private Map<String, HotProduct> oldListProducts = new HashMap<>();
     private final Map<String, SkuProduct> oldListSkuProduct = new HashMap<>();
@@ -30,13 +33,6 @@ public class ProductCacheFilter {
 
     private LocalDateTime cacheTime;
     private LocalDate cacheDateToday;
-
-    @Autowired
-    public ProductCacheFilter(FinalPriceService finalPriceService, NotificationService notify, Clock clock) {
-        this.finalPriceService = finalPriceService;
-        this.notify = notify;
-        this.clock = clock;
-    }
 
     public List<HotProduct> simpleFilter(List<HotProduct> products) {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -75,7 +71,7 @@ public class ProductCacheFilter {
                 productsToProcess.add(newSkuProduct);
             }
         }
-        return ChooseBetterSku.chooseSkuProduct(productsToProcess);
+        return chooseBetterSku.chooseSkuProduct(productsToProcess);
     }
 
     private void updateCache(List<HotProduct> newList, LocalDateTime currentTime) {

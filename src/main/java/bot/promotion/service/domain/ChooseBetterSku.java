@@ -1,12 +1,14 @@
-package bot.promotion.util;
+package bot.promotion.service.domain;
 
 import bot.promotion.dto.SkuProduct;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Service
 public class ChooseBetterSku {
     private static final Pattern FIRST_WORD_PATTERN = Pattern.compile("^([^\\s-_]+)");
     private static final Set<String> COMMON_COLORS = Set.of(
@@ -16,7 +18,7 @@ public class ChooseBetterSku {
             "laranja", "marrom", "cinza", "prata", "dourado", "bege"
     );
 
-    public static SkuProduct chooseSkuProduct(List<SkuProduct> skuAllProducts) {
+    public SkuProduct chooseSkuProduct(List<SkuProduct> skuAllProducts) {
         if (skuAllProducts.isEmpty()) return null;
         if (skuAllProducts.size() == 1) return skuAllProducts.getFirst();
         Map<String, Optional<SkuProduct>> groupedByCheapest = skuAllProducts.stream()
@@ -34,7 +36,7 @@ public class ChooseBetterSku {
         return bestVariantsOfEachModel.getFirst();
     }
 
-    private static String simplifiedGroupkey(String title) {
+    private String simplifiedGroupkey(String title) {
         if (title == null || title.isBlank()) {
             return "unknown";
         }
@@ -50,14 +52,18 @@ public class ChooseBetterSku {
         return titleFormated;
     }
 
-    private static Comparator<SkuProduct> getBestVariantComparator() {
+    private Comparator<SkuProduct> getBestVariantComparator() {
         return Comparator
                 .comparingInt((SkuProduct sku) -> isShippedFromBrazil(sku) ? 0 : 1)
-                .thenComparingDouble(ChooseBetterSku::extractShippingFee)
-                .thenComparingDouble(ChooseBetterSku::extractSalePrice);
+                .thenComparingDouble(this::extractShippingFee)
+                .thenComparingDouble(this::extractSalePrice);
     }
 
-    private static double extractShippingFee(SkuProduct sku) {
+    private boolean isShippedFromBrazil(SkuProduct sku) {
+        return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
+    }
+
+    private double extractShippingFee(SkuProduct sku) {
         if (sku.getShippingFees() == null || sku.getShippingFees().isEmpty()) return 0.0;
         try {
             return Double.parseDouble(sku.getShippingFees());
@@ -66,7 +72,7 @@ public class ChooseBetterSku {
         }
     }
 
-    private static double extractSalePrice(SkuProduct sku) {
+    private double extractSalePrice(SkuProduct sku) {
         if (sku.getSalePrice() == null) return Double.MAX_VALUE;
         try {
             return Double.parseDouble(sku.getSalePrice());
@@ -75,7 +81,4 @@ public class ChooseBetterSku {
         }
     }
 
-    private static boolean isShippedFromBrazil(SkuProduct sku) {
-        return sku.getShipFromCountry() != null && "BR".equals(sku.getShipFromCountry().trim());
-    }
 }
