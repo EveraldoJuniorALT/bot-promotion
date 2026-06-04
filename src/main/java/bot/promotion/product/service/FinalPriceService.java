@@ -45,9 +45,14 @@ public class FinalPriceService {
         BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
 
         if (afterDiscount.compareTo(limiteBRL) <= 0) {
-            BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
+            //Regra de tributação antiga, mas que voltará a entrar em vigor com a RT27
+
+            /*BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
-            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);*/
+
+            BigDecimal icmsTax = afterDiscount.multiply(ICMS_RATE);
+            BigDecimal finalPrice = afterDiscount.add(icmsTax);
             return finalPrice.setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -72,9 +77,14 @@ public class FinalPriceService {
         BigDecimal limiteBRL = limiteUSD.multiply(cotacaoAtual);
 
         if (afterDiscount.compareTo(limiteBRL) <= 0) {
-            BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
+            //Regra de tributação antiga, mas que voltará a entrar em vigor com a RT27
+
+            /*BigDecimal importDuty = afterDiscount.multiply(IMPORT_DUTY_RATE);
             BigDecimal icmsTax = (afterDiscount.add(importDuty)).multiply(ICMS_RATE);
-            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);
+            BigDecimal finalPrice = afterDiscount.add(importDuty).add(icmsTax);*/
+
+            BigDecimal icmsTax = afterDiscount.multiply(ICMS_RATE);
+            BigDecimal finalPrice = afterDiscount.add(icmsTax);
             return finalPrice.setScale(2, RoundingMode.HALF_UP);
         }
 
