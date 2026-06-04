@@ -24,13 +24,13 @@ public class TelegramMessageFormatter {
     public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return null;
 
-        String finalPrice = coinPercentageDiscount != null ? String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount)) :
-                String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, affiliateLinks.getFirst()));
+        String finalPrice = String.valueOf(finalPriceService.calculateFinalPrice(product, skuProduct, coinPercentageDiscount));
+        String coins = finalPriceService.getCoinNumber(skuProduct, coinPercentageDiscount);
 
-        return createMessage(product, skuProduct, affiliateLinks, finalPrice);
+        return createMessage(product, skuProduct, affiliateLinks, finalPrice, coins);
     }
 
-    private String createMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, String finalPrice) {
+    private String createMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, String finalPrice, String coins) {
         StringBuilder message = new StringBuilder();
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
         message.append("💰 Valor: R$ ").append(finalPrice).append("\n\n");
@@ -54,7 +54,7 @@ public class TelegramMessageFormatter {
             }
             message.append(String.join(" + ", codes));
         }
-        message.append(" + Moedas \n\n");
+        message.append(" + ").append(coins).append(" Moedas \n\n");
         message.append("🔗 ").append(affiliateLinks.getFirst()).append("\n\n");
         message.append("❗ Super desconto Apenas no APP, após abrir o link, o produto vai estar na 1ª posição da pág de moedas. \n\n");
         message.append("Link para PC sem super desconto: ").append(affiliateLinks.getLast()).append("\n\n");

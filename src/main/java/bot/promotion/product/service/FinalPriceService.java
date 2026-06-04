@@ -31,6 +31,24 @@ public class FinalPriceService {
     private final AliexpressCoinService aliexpressCoinService;
     private final NotificationService notify;
 
+    public String getCoinNumber(SkuProduct skuProduct, BigDecimal discountCoinValue) {
+        BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
+        BigDecimal discountValueCoinBRL;
+        try {
+            discountValueCoinBRL = valueProduct.multiply(discountCoinValue).
+                    divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
+        } catch (ArithmeticException e) {
+            notify.sendErrorMessage("Error calculate coin discount: ", e);
+            return "Moedas";
+        }
+
+        BigDecimal cotacaoAtual = cotacao.getCachedCotacao();
+        BigDecimal discountValueCoinUSD = discountValueCoinBRL.divide(cotacaoAtual, 2, RoundingMode.HALF_UP);
+        BigDecimal coin = discountValueCoinUSD.multiply(new BigDecimal(100));
+
+        return String.format("%.0f", coin);
+    }
+
     public BigDecimal calculateFinalPrice(HotProduct product, SkuProduct skuProduct, String affiliateLink) {
         BigDecimal afterDiscount = ProductPriceWithCouponAndCoin(product, skuProduct, affiliateLink);
 
