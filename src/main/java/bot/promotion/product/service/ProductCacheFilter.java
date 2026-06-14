@@ -12,10 +12,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -74,6 +71,17 @@ public class ProductCacheFilter {
         return chooseBetterSku.chooseSkuProduct(productsToProcess);
     }
 
+    public void filterAllProducts(List<HotProduct> products, List<String> models, List<String> excludedModels) {
+        Set<String> seenProductIds = new HashSet<>();
+
+        products.removeIf(product ->
+                isInvalidProduct(product) ||
+                        !isUnique(product, seenProductIds) ||
+                        matchesRequiredModels(product, models) ||
+                        matchesExcludedModels(product, excludedModels)
+        );
+    }
+
     private void updateCache(List<HotProduct> newList, LocalDateTime currentTime) {
         this.oldListProducts = newList.stream()
                 .collect(Collectors.toMap(HotProduct::getProductId, Function.identity(), (p1, p2) -> p1));
@@ -101,4 +109,41 @@ public class ProductCacheFilter {
             return false;
         }
     }
+
+    private boolean isInvalidProduct(HotProduct product) {
+        if (product.getProductId() == null || product.getProductId().isBlank()) return true;
+        if (product.getSalePriceApp() == null || product.getSalePriceApp().isBlank()) return true;
+        if (product.getSkuId() == null || product.getSkuId().isBlank()) return true;
+        if (product.getImageUrl() == null || product.getImageUrl().isBlank()) return true;
+
+        return isLowRated(product);
+    }
+
+    private boolean isLowRated(HotProduct product) {
+        String rate = product.getEvaluateRate();
+        if (rate == null || rate.isBlank()) return true;
+        try {
+            double rateValue = Double.parseDouble(rate.replace("%", ""));
+            return rateValue < 80;
+        } catch (NumberFormatException e) {
+            return true;
+        }
+    }
+
+    private boolean isUnique(HotProduct product, Set<String> seenIds) {
+        return seenIds.add(product.getProductId());
+    }
+
+    private boolean matchesRequiredModels(HotProduct product, List<String> models) {
+        if (models == null || models.isEmpty()) return false;
+        String titleLower = product.getProductTitle().toLowerCase();
+        return models.stream().noneMatch(titleLower::contains);
+    }
+
+    private boolean matchesExcludedModels(HotProduct product, List<String> excludedModels) {
+        if (excludedModels == null || excludedModels.isEmpty()) return false;
+        String titleLower = product.getProductTitle().toLowerCase();
+        return excludedModels.stream().anyMatch(titleLower::contains);
+    }
+
 }

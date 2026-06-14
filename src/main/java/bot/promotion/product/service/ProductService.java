@@ -67,7 +67,7 @@ public class ProductService {
         List<HotProduct> allProducts = new ArrayList<>();
         processToFetchHotProducts(brand, allProducts);
 
-        filterAllProducts(allProducts, acceptedModels, excludedModels);
+        productCacheFilter.filterAllProducts(allProducts, acceptedModels, excludedModels);
         return allProducts;
     }
 
@@ -87,55 +87,9 @@ public class ProductService {
         }
     }
 
-    private void filterAllProducts(List<HotProduct> products, List<String> models, List<String> excludedModels) {
-        Set<String> seenProductIds = new HashSet<>();
-
-        products.removeIf(product ->
-                isInvalidProduct(product) ||
-                        !isUnique(product, seenProductIds) ||
-                        matchesRequiredModels(product, models) ||
-                        matchesExcludedModels(product, excludedModels)
-        );
-    }
-
-    private boolean isInvalidProduct(HotProduct product) {
-        if (product.getProductId() == null || product.getProductId().isBlank()) return true;
-        if (product.getSalePriceApp() == null || product.getSalePriceApp().isBlank()) return true;
-        if (product.getSkuId() == null || product.getSkuId().isBlank()) return true;
-        if (product.getImageUrl() == null || product.getImageUrl().isBlank()) return true;
-
-        return isLowRated(product);
-    }
-
-    private boolean isLowRated(HotProduct product) {
-        String rate = product.getEvaluateRate();
-        if (rate == null || rate.isBlank()) return true;
-        try {
-            double rateValue = Double.parseDouble(rate.replace("%", ""));
-            return rateValue < 80;
-        } catch (NumberFormatException e) {
-            return true;
-        }
-    }
-
-    private boolean isUnique(HotProduct product, Set<String> seenIds) {
-        return seenIds.add(product.getProductId());
-    }
-
-    private boolean matchesRequiredModels(HotProduct product, List<String> models) {
-        if (models == null || models.isEmpty()) return false;
-        String titleLower = product.getProductTitle().toLowerCase();
-        return models.stream().noneMatch(titleLower::contains);
-    }
-
-    private boolean matchesExcludedModels(HotProduct product, List<String> excludedModels) {
-        if (excludedModels == null || excludedModels.isEmpty()) return false;
-        String titleLower = product.getProductTitle().toLowerCase();
-        return excludedModels.stream().anyMatch(titleLower::contains);
-    }
-
     private void processHotProducts(List<HotProduct> products) {
         if (products == null || products.isEmpty()) return;
+        notify.sendWarningMessage("HotProducts is empty in product service in line 92");
 
         List<HotProduct> filteredProducts = productCacheFilter.simpleFilter(products);
         if (filteredProducts.isEmpty()) return;
