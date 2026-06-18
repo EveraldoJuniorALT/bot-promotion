@@ -4,7 +4,7 @@ import bot.promotion.aliexpress.client.CotacaoRequest;
 import bot.promotion.product.dto.HotProduct;
 import bot.promotion.product.dto.SkuProduct;
 import bot.promotion.product.entity.Coupon;
-import bot.promotion.product.repository.CouponRepository;
+import bot.promotion.product.service.domain.CouponManager;
 import bot.promotion.telegram.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,12 +16,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FinalPriceService {
-    private final CouponRepository couponRepository;
+    private final CouponManager couponManager;
     // Voltará a entrar em vigor com a RT27
     //private static final BigDecimal IMPORT_DUTY_RATE = new BigDecimal("0.20"); // 20% import duty rate for <= $50 products
     private static final BigDecimal IMPORT_DUTY_RATE_OVER = new BigDecimal("0.28"); // 28% import duty rate for > $50 products
@@ -80,23 +79,6 @@ public class FinalPriceService {
         return finalPrice.setScale(2, RoundingMode.HALF_UP);
     }
 
-    /*
-     * With skuProduct info I can get a more precise coupon list
-     * since the skuProduct contains info about the product models
-     */
-    public List<Coupon> couponListAvailable(SkuProduct skuProduct) {
-        Double valueProduct = Double.parseDouble(skuProduct.getSalePrice());
-        List<Coupon> couponsAvailable = couponRepository.findAllByMinimumSpendLessThanEqual(valueProduct);
-
-        if (couponsAvailable.isEmpty()) {
-            return List.of();
-        }
-
-        return couponsAvailable.stream()
-                .sorted(Comparator.comparing(Coupon::getDiscount).reversed())
-                .collect(Collectors.toList());
-    }
-
     private BigDecimal ProductPriceWithCouponAndCoin(HotProduct product, SkuProduct skuProduct, BigDecimal extraDiscountCoins) {
         // Gross value of product
         BigDecimal valueProduct = new BigDecimal(skuProduct.getSalePrice());
@@ -112,7 +94,7 @@ public class FinalPriceService {
         // Value of product with discount of seller
         BigDecimal discountedProductValue = valueProduct.subtract(BigDecimal.valueOf(valuePromotionCode));
 
-        List<Coupon> couponsAvailable = couponListAvailable(skuProduct);
+        List<Coupon> couponsAvailable = couponManager.getCouponAvailable(skuProduct);
         Optional<Coupon> coupons = couponsAvailable.stream()
                 .max(Comparator.comparing(Coupon::getDiscount));
 
