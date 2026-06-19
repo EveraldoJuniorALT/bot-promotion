@@ -1,11 +1,22 @@
 package bot.promotion.service;
 
-import bot.promotion.client.AliexpressApiClient;
-import bot.promotion.client.FetchShippingInfo;
-import bot.promotion.client.SkuProductInfo;
-import bot.promotion.config.BrandAndModel;
-import bot.promotion.config.BrandsAndModelsFilter;
-import bot.promotion.dto.*;
+import bot.promotion.aliexpress.client.AliexpressApiClient;
+import bot.promotion.aliexpress.client.FetchShippingInfo;
+import bot.promotion.aliexpress.client.SkuProductInfo;
+import bot.promotion.aliexpress.dto.HotProductResponse;
+import bot.promotion.aliexpress.dto.ShippingInfoResponse;
+import bot.promotion.aliexpress.dto.SkuProductResponse;
+import bot.promotion.core.util.BrandAndModel;
+import bot.promotion.core.util.BrandsAndModelsFilter;
+import bot.promotion.product.dto.HotProduct;
+import bot.promotion.product.dto.ShippingInfo;
+import bot.promotion.product.dto.SkuProduct;
+import bot.promotion.product.service.ProductCacheFilter;
+import bot.promotion.product.service.ProductService;
+import bot.promotion.product.service.ProductUrlService;
+import bot.promotion.telegram.formatter.TelegramMessageFormatter;
+import bot.promotion.telegram.service.NotificationService;
+import bot.promotion.telegram.service.TelegramSenderService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +37,7 @@ class ProductServiceTest {
     @Mock
     private AliexpressApiClient fetchHotProducts;
     @Mock
-    private TelegramReceiveAndPost telegramReceiveAndPost;
+    private TelegramSenderService telegramSenderService;
     @Mock
     private TelegramMessageFormatter formatter;
     @Mock
@@ -72,7 +83,7 @@ class ProductServiceTest {
 
         productService.fetchHotProducts();
 
-        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
+        verify(telegramSenderService, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
     }
 
     @Test
@@ -108,7 +119,7 @@ class ProductServiceTest {
 
         ArgumentCaptor<SkuProduct> skuCaptor = ArgumentCaptor.forClass(SkuProduct.class);
         verify(formatter, times(2)).formatMessage(any(), skuCaptor.capture(), anyList(), any());
-        verify(telegramReceiveAndPost, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
+        verify(telegramSenderService, times(2)).sendPhotoMessage(any(), eq("Formatted Message"), anyBoolean());
 
         List<SkuProduct> capturedSkus = skuCaptor.getAllValues();
         SkuProduct sku1 = capturedSkus.getFirst();
@@ -146,7 +157,7 @@ class ProductServiceTest {
         productService.fetchHotProducts();
 
         verify(productCacheFilter, never()).simpleFilter(anyList());
-        verify(telegramReceiveAndPost, never()).sendPhotoMessage(anyString(), anyString(), anyBoolean());
+        verify(telegramSenderService, never()).sendPhotoMessage(anyString(), anyString(), anyBoolean());
     }
 
     private HotProductResponse creatResponseApiProduct(List<HotProduct> hotProducts) {

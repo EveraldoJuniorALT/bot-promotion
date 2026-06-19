@@ -1,12 +1,23 @@
 package bot.promotion.service;
 
-import bot.promotion.client.FetchProductDetail;
-import bot.promotion.client.FetchShippingInfo;
-import bot.promotion.client.SkuProductInfo;
-import bot.promotion.dto.*;
-import bot.promotion.entity.Product;
-import bot.promotion.repository.PriceHistoryRepository;
-import bot.promotion.repository.ProductRepository;
+import bot.promotion.aliexpress.client.FetchProductDetail;
+import bot.promotion.aliexpress.client.FetchShippingInfo;
+import bot.promotion.aliexpress.client.SkuProductInfo;
+import bot.promotion.aliexpress.dto.HotProductResponse;
+import bot.promotion.aliexpress.dto.SkuProductResponse;
+import bot.promotion.aliexpress.service.AliexpressCoinService;
+import bot.promotion.product.dto.HotProduct;
+import bot.promotion.product.dto.SkuProduct;
+import bot.promotion.product.entity.Product;
+import bot.promotion.product.repository.PriceHistoryRepository;
+import bot.promotion.product.repository.ProductRepository;
+import bot.promotion.product.service.FinalPriceService;
+import bot.promotion.product.service.ProductProcessedCache;
+import bot.promotion.product.service.ProductUrlService;
+import bot.promotion.telegram.formatter.TelegramMessageFormatter;
+import bot.promotion.telegram.service.NotificationService;
+import bot.promotion.telegram.service.ProductTelegramService;
+import bot.promotion.telegram.service.TelegramSenderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +45,7 @@ class ProductTelegramServiceTest {
     @Mock
     private FetchProductDetail fetchProductDetail;
     @Mock
-    private TelegramReceiveAndPost telegramReceiveAndPost;
+    private TelegramSenderService telegramSenderService;
     @Mock
     private TelegramMessageFormatter formatter;
     @Mock
@@ -82,7 +93,7 @@ class ProductTelegramServiceTest {
         verify(urlService).createCoinUrl(productId);
         verify(coinService).processLink(links.getFirst());
         verify(productProcessedCache).saveToCache(eq(productId), eq(links), eq(discount));
-        verify(telegramReceiveAndPost).sendPhotoMessage(any(), any(), anyBoolean());
+        verify(telegramSenderService).sendPhotoMessage(any(), any(), anyBoolean());
     }
 
     @Test
@@ -107,7 +118,7 @@ class ProductTelegramServiceTest {
 
         verify(urlService, never()).createCoinUrl(anyString());
         verify(coinService, never()).processLink(anyString());
-        verify(telegramReceiveAndPost).sendPhotoMessage(any(), any(), anyBoolean());
+        verify(telegramSenderService).sendPhotoMessage(any(), any(), anyBoolean());
     }
 
     @Test

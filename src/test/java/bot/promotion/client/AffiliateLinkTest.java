@@ -1,8 +1,9 @@
 package bot.promotion.client;
 
-import bot.promotion.entity.Token;
-import bot.promotion.repository.TokenRepository;
-import bot.promotion.service.NotificationService;
+import bot.promotion.aliexpress.client.AffiliateLink;
+import bot.promotion.product.entity.Token;
+import bot.promotion.product.repository.TokenRepository;
+import bot.promotion.telegram.service.NotificationService;
 import com.aliexpress.open.request.AliexpressAffiliateLinkGenerateRequest;
 import com.aliexpress.open.response.AliexpressAffiliateLinkGenerateResponse;
 import com.global.iop.api.IopClient;

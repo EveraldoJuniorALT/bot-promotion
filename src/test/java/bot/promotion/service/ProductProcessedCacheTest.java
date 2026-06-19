@@ -1,6 +1,7 @@
 package bot.promotion.service;
 
-import bot.promotion.service.ProductProcessedCache.CachedProductData;
+import bot.promotion.product.service.ProductProcessedCache;
+import bot.promotion.product.service.ProductProcessedCache.CachedProductData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,6 @@ class ProductProcessedCacheTest {
 
     @BeforeEach
     void setUp() {
-        cache = new ProductProcessedCache();
     }
 
     @Test

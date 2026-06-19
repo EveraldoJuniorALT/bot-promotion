@@ -1,8 +1,9 @@
 package bot.promotion.client;
 
-import bot.promotion.dto.HotProduct;
-import bot.promotion.dto.ShippingInfoResponse;
-import bot.promotion.service.NotificationService;
+import bot.promotion.aliexpress.client.FetchShippingInfo;
+import bot.promotion.product.dto.HotProduct;
+import bot.promotion.aliexpress.dto.ShippingInfoResponse;
+import bot.promotion.telegram.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.global.iop.api.IopClient;
 import com.global.iop.api.IopRequest;
