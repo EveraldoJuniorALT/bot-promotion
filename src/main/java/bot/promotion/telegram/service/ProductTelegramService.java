@@ -15,15 +15,16 @@ import bot.promotion.product.service.ProductUrlService;
 import bot.promotion.product.service.domain.ChooseBetterSku;
 import bot.promotion.product.service.persistence.ProductPersistenceManager;
 import bot.promotion.telegram.formatter.TelegramMessageFormatter;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
-@RequiredArgsConstructor
 public class ProductTelegramService {
     private final SkuProductInfo skuProductInfo;
     private final FetchProductDetail fetchProductDetail;
@@ -36,20 +37,66 @@ public class ProductTelegramService {
     private final ProductProcessedCache productProcessedCache;
     private final ChooseBetterSku chooseBetterSku;
     private final ProductPersistenceManager persistenceManager;
+    private final Executor telegramExecutor;
+
+    public ProductTelegramService(
+            SkuProductInfo skuProductInfo,
+            FetchProductDetail fetchProductDetail,
+            TelegramSenderService telegramSenderService,
+            TelegramMessageFormatter formatter,
+            ProductUrlService urlService,
+            AliexpressCoinService coinService,
+            FetchShippingInfo shippingInfo,
+            NotificationService notify,
+            ProductProcessedCache productProcessedCache,
+            ChooseBetterSku chooseBetterSku,
+            ProductPersistenceManager persistenceManager,
+            @Qualifier("telegramExecutor") Executor telegramExecutor) {
+        this.skuProductInfo = skuProductInfo;
+        this.fetchProductDetail = fetchProductDetail;
+        this.telegramSenderService = telegramSenderService;
+        this.formatter = formatter;
+        this.urlService = urlService;
+        this.coinService = coinService;
+        this.shippingInfo = shippingInfo;
+        this.notify = notify;
+        this.productProcessedCache = productProcessedCache;
+        this.chooseBetterSku = chooseBetterSku;
+        this.persistenceManager = persistenceManager;
+        this.telegramExecutor = telegramExecutor;
+    }
 
 
     public void processSaveProductUrl(String productId) {
-        createParameters(productId, true);
+        CompletableFuture.runAsync(() -> {
+            try {
+                createParameters(productId, true);
+            } catch (Exception e) {
+                notify.sendErrorMessage("Erro assíncrono ao processar /save para o produto ID: " + productId, e);
+            }
+        }, telegramExecutor);
     }
 
     // With boolean expression "shouldPublish", we can control if we want to just send the product info or also save it to the database.
     public void sendProductInfo(String productId) {
-        createParameters(productId, false);
+        CompletableFuture.runAsync(() -> {
+            try {
+                createParameters(productId, false);
+            } catch (Exception e) {
+                notify.sendErrorMessage("Erro assíncrono ao processar  /post para o produto ID: " + productId, e);
+            }
+        }, telegramExecutor);
     }
 
-    public void processDefaultProductUrl (String productId, User userShared, String chatId, Integer messageId) {
-        String formatText = formatter.createDefaultMessageText(productId, userShared);
-        telegramSenderService.sendTextMessage(formatText, chatId, messageId);
+    public void processDefaultProductUrl(String productId, User userShared, String chatId, Integer messageId) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                String formatText = formatter.createDefaultMessageText(productId, userShared);
+                telegramSenderService.sendTextMessage(formatText, chatId, messageId);
+            } catch (Exception e) {
+                notify.sendErrorMessage("Erro assíncrono ao processar default para o produto ID: " + productId, e);
+            }
+        }, telegramExecutor);
     }
 
     private void createParameters(String productId, boolean shouldSave) {

@@ -19,7 +19,7 @@ import bot.promotion.telegram.formatter.TelegramMessageFormatter;
 import bot.promotion.telegram.service.NotificationService;
 import bot.promotion.telegram.service.TelegramSenderService;
 import bot.promotion.product.validator.PublishEligibilityValidator;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -28,10 +28,11 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ProductService {
     private final AliexpressApiClient fetchHotProducts;
     private final TelegramSenderService telegramSenderService;
@@ -48,6 +49,41 @@ public class ProductService {
     private final ProductProcessedCache productProcessedCache;
     private final Clock clock;
     private final ProductPersistenceManager persistenceManager;
+    private final Executor apiExecutor;
+
+    public ProductService(AliexpressApiClient fetchHotProducts,
+                          TelegramSenderService telegramSenderService,
+                          TelegramMessageFormatter formatter,
+                          ProductUrlService urlService,
+                          SkuProductInfo skuProductInfo,
+                          ProductCacheFilter productCacheFilter,
+                          BrandsAndModelsFilter brandsModels,
+                          FetchShippingInfo shippingInfo,
+                          NotificationService notify,
+                          FinalPriceService finalPriceService,
+                          AliexpressCoinService aliexpressCoinService,
+                          PublishEligibilityValidator publishEligibility,
+                          ProductProcessedCache productProcessedCache,
+                          Clock clock,
+                          ProductPersistenceManager persistenceManager,
+                          @Qualifier("apiExecutor") Executor apiExecutor) {
+        this.fetchHotProducts = fetchHotProducts;
+        this.telegramSenderService = telegramSenderService;
+        this.formatter = formatter;
+        this.urlService = urlService;
+        this.skuProductInfo = skuProductInfo;
+        this.productCacheFilter = productCacheFilter;
+        this.brandsModels = brandsModels;
+        this.shippingInfo = shippingInfo;
+        this.notify = notify;
+        this.finalPriceService = finalPriceService;
+        this.aliexpressCoinService = aliexpressCoinService;
+        this.publishEligibility = publishEligibility;
+        this.productProcessedCache = productProcessedCache;
+        this.clock = clock;
+        this.persistenceManager = persistenceManager;
+        this.apiExecutor = apiExecutor;
+    }
 
     public void fetchHotProducts() {
         List<BrandAndModel> brandsAndModels = brandsModels.getBrandsAndModels();
@@ -88,8 +124,10 @@ public class ProductService {
     }
 
     private void processHotProducts(List<HotProduct> products) {
-        if (products == null || products.isEmpty()) return;
-        notify.sendWarningMessage("HotProducts is empty in product service in line 92");
+        if (products == null || products.isEmpty()) {
+            notify.sendWarningMessage("HotProducts is empty in product service in line 98");
+            return;
+        }
 
         List<HotProduct> filteredProducts = productCacheFilter.simpleFilter(products);
         if (filteredProducts.isEmpty()) return;
@@ -99,40 +137,37 @@ public class ProductService {
                 .toList();
 
         List<Product> existingDbProducts = persistenceManager.findProductsBatch(productIds);
-        Map<String, Product> dBProductsMap = new HashMap<>();
-        if (!existingDbProducts.isEmpty()) {
-            dBProductsMap = existingDbProducts.stream().collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
-        }
+        Map<String, Product> dBProductsMap = existingDbProducts.stream().collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
 
-        List<HotProduct> dBExistingProducts = new ArrayList<>();
-        List<HotProduct> dBNoExistingProducts = new ArrayList<>();
 
-        for (HotProduct hp : filteredProducts) {
-            if (dBProductsMap.containsKey(hp.getProductId())) {
-                dBExistingProducts.add(hp);
-                continue;
-            }
-            dBNoExistingProducts.add(hp);
-        }
+        List<CompletableFuture<Void>> futures = filteredProducts.stream()
+                .map(hp -> CompletableFuture.runAsync(() -> {
+                    try {
+                        if (dBProductsMap.containsKey(hp.getProductId())) {
+                            processExistingDbProduct(hp, dBProductsMap);
+                            return;
+                        }
+                        processNoExistingDbProduct(hp);
+                    } catch (Exception e) {
+                        notify.sendErrorMessage("Falha assíncrona ao processar produto ID: " + hp.getProductId(), e);
+                    }
+                }, apiExecutor))
+                .toList();
 
-        if (!dBExistingProducts.isEmpty()) {
-            processExistingDbProducts(dBExistingProducts, dBProductsMap);
-        }
-        if (!dBNoExistingProducts.isEmpty()) {
-            processNoExistingDbProducts(dBNoExistingProducts);
-        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        notify.sendInfoMessage("Automatic channel processing was successful");
     }
 
-    private void processExistingDbProducts(List<HotProduct> hotProductsDbExisting, Map<String, Product> dBProductsMap) {
-        for (HotProduct hotProduct : hotProductsDbExisting) {
-            Product productEntity = dBProductsMap.get(hotProduct.getProductId());
-            if (productEntity == null) continue;
 
-            List<SkuProduct> skuAllProduct = getOrBuildSku(hotProduct);
-            SkuProduct bestSkuProduct = productCacheFilter.compareAndFilter(hotProduct, skuAllProduct);
-            if (bestSkuProduct == null) continue;
-            processProductToPublish(hotProduct, productEntity, bestSkuProduct, skuAllProduct);
-        }
+    private void processExistingDbProduct(HotProduct hotProduct, Map<String, Product> dBProductsMap) {
+        Product productEntity = dBProductsMap.get(hotProduct.getProductId());
+        if (productEntity == null) return;
+
+        List<SkuProduct> skuAllProduct = getOrBuildSku(hotProduct);
+        SkuProduct bestSkuProduct = productCacheFilter.compareAndFilter(hotProduct, skuAllProduct);
+        if (bestSkuProduct == null) return;
+
+        processProductToPublish(hotProduct, productEntity, bestSkuProduct, skuAllProduct);
     }
 
     private void processProductToPublish(HotProduct hotProduct, Product productEntity, SkuProduct bestSkuProduct, List<SkuProduct> skuAllProduct) {
@@ -181,18 +216,17 @@ public class ProductService {
      * and at another time treated and published as a promotion.
      * This is part of one of the rules and thus speeds up the processing of products.
      */
-    private void processNoExistingDbProducts(List<HotProduct> hotProductsNoDbExisting) {
-        for (HotProduct hp : hotProductsNoDbExisting) {
-            if (productProcessedCache.isSecondaryGroupProcessed(hp.getProductId())) continue;
+    private void processNoExistingDbProduct(HotProduct hp) {
+        if (productProcessedCache.isSecondaryGroupProcessed(hp.getProductId())) return;
 
-            List<String> affiliateLinks = List.of(hp.getProductLinkPc());// Sets a default product link to avoid delays in processing products without much importance
-            SkuProduct skuProduct = buildSkuProduct(hp).getFirst();
+        List<String> affiliateLinks = List.of(hp.getProductLinkPc());// Sets a default product link to avoid delays in processing products without much importance
+        SkuProduct skuProduct = buildSkuProduct(hp).getFirst();
 
-            BigDecimal discountCoinValue = new BigDecimal("1.00");// Sets a generic default value to avoid delays in processing products without much importance
+        BigDecimal discountCoinValue = new BigDecimal("1.00");// Sets a generic default value to avoid delays in processing products without much importance
 
-            publishProduct(hp, skuProduct, affiliateLinks, discountCoinValue, false);
-            productProcessedCache.markSecondaryGroupAsProcessed(hp.getProductId());
-        }
+        publishProduct(hp, skuProduct, affiliateLinks, discountCoinValue, false);
+        productProcessedCache.markSecondaryGroupAsProcessed(hp.getProductId());
+
     }
 
     private boolean isDataPriceValid(BigDecimal averagePrice, BigDecimal currentPrice) {

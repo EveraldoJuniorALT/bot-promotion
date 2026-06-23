@@ -23,7 +23,7 @@ public class AsyncConfig {
         return scheduler;
     }
 
-    @Bean(name = "ApiExecutor")
+    @Bean(name = "apiExecutor")
     public Executor apiExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(10);
