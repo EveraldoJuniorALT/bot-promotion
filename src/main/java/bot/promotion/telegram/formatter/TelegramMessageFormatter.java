@@ -5,6 +5,7 @@ import bot.promotion.product.dto.SkuProduct;
 import bot.promotion.product.entity.Coupon;
 import bot.promotion.product.service.FinalPriceService;
 import bot.promotion.product.service.ProductUrlService;
+import bot.promotion.product.service.domain.CouponManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class TelegramMessageFormatter {
     private final FinalPriceService finalPriceService;
     private final ProductUrlService productUrlService;
+    private final CouponManager  couponManager;
 
     public String formatMessage(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount) {
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return null;
@@ -35,7 +37,7 @@ public class TelegramMessageFormatter {
         message.append("🔥 ").append(product.getProductTitle()).append("\n\n");
         message.append("💰 Valor: R$ ").append(finalPrice).append("\n\n");
 
-        List<Coupon> coupons = finalPriceService.couponListAvailable(skuProduct);
+        List<Coupon> coupons = couponManager.getCouponAvailable(skuProduct);
         boolean hasPromoCode = product.getPromotionCode() != null && product.getPromotionCode().getCodePromotion() != null && !product.getPromotionCode().getCodePromotion().isBlank();
 
         if (!coupons.isEmpty() || hasPromoCode) {
