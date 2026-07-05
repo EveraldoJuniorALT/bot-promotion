@@ -93,6 +93,7 @@ public class ProductTelegramService {
             try {
                 String formatText = formatter.createDefaultMessageText(productId, userShared);
                 telegramSenderService.sendTextMessage(formatText, chatId, messageId);
+                telegramSenderService.deleteUserMessage(messageId, chatId);
             } catch (Exception e) {
                 notify.sendErrorMessage("Erro assíncrono ao processar default para o produto ID: " + productId, e);
             }

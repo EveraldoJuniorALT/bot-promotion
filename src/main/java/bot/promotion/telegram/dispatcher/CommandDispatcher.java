@@ -54,7 +54,6 @@ public class CommandDispatcher {
 
             default:
                 processDefaultCommand(productId, update.getMessage().getFrom(), chatId, messageId);
-                senderService.deleteUserMessage(messageId, chatId);
                 break;
         }
     }
