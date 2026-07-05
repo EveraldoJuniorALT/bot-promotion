@@ -125,7 +125,7 @@ public class ProductService {
 
     private void processHotProducts(List<HotProduct> products) {
         if (products == null || products.isEmpty()) {
-            notify.sendWarningMessage("HotProducts is empty in product service in line 98");
+            notify.sendWarningMessage("HotProducts is empty in product service in line 128");
             return;
         }
 

@@ -57,11 +57,6 @@ public class CommandDispatcher {
                 senderService.deleteUserMessage(messageId, chatId);
                 break;
         }
-        /*
-         * The calls to the method above are intentionally duplicated
-         * For the 'sendTextMessage' method to function correctly,
-         * the message must be deleted after its execution.
-         */
     }
 
     private void processSaveCommand(String productId) {

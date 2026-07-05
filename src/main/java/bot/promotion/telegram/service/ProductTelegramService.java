@@ -119,7 +119,7 @@ public class ProductTelegramService {
 
         List<SkuProduct> skuProducts = getOrBuildSku(productDetail);
         if (skuProducts == null || skuProducts.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 71: " + productId);
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 122: " + productId);
             return;
         }
 
@@ -129,7 +129,7 @@ public class ProductTelegramService {
     private HotProduct fetchAndValidateProduct(String productId) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            notify.sendWarningMessage("Process stopped: No product detail found for product ID: " + productId);
+            notify.sendWarningMessage("Process stopped: No product detail found for product ID in line 132 on ProductTelegramService: " + productId);
             return null;
         }
         return productDetail;
@@ -138,7 +138,7 @@ public class ProductTelegramService {
     private List<String> createAndValidateLinks(String productId) {
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            notify.sendWarningMessage("Process stopped: No affiliate created for product ID: " + productId);
+            notify.sendWarningMessage("Process stopped: No affiliate created for product ID in line 141 on ProductTelegramService: " + productId);
             return null;
         }
         return affiliateLinks;
@@ -147,7 +147,7 @@ public class ProductTelegramService {
     private BigDecimal extractAndValidateDiscount(String link) {
         BigDecimal coinPercentageDiscount = getDiscountWithRetry(link);
         if (isDiscountInvalid(coinPercentageDiscount)) {
-            notify.sendWarningMessage("Process stopped: No coin percentage discount extracted for link: " + link);
+            notify.sendWarningMessage("Process stopped: No coin percentage discount extracted for link in line 150 on ProductTelegramService: " + link);
             return null;
         }
         return coinPercentageDiscount;
@@ -234,7 +234,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 187: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 237 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -247,7 +247,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 200: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 250 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -258,7 +258,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 211: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 261 on ProductTelegramService: " + productDetail.getProductId());
         return null;
     }
 

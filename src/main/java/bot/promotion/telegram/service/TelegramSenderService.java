@@ -48,6 +48,7 @@ public class TelegramSenderService {
         }
     }
 
+    @Async
     public void sendTextMessage(String text, String chatIdFromTelegram, Integer replyToMessageId) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatIdFromTelegram);
