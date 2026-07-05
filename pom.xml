@@ -68,8 +68,8 @@
         <dependency>
             <groupId>com.aliexpress.sdk</groupId>
             <artifactId>gop-sdk-java</artifactId>
-            <version>1.0.0</version> <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/lib/gop-sdk-Java1701065323525.jar</systemPath>
+            <version>2.0.0</version> <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/gop-sdk-Java1783227608828.jar</systemPath>
         </dependency>
 
         <dependency>
