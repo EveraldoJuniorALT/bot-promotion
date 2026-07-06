@@ -28,9 +28,19 @@ public class HotProduct {
     @JsonProperty("product_title")
     private String productTitle;
 
-    @JsonProperty("target_app_sale_price")
     private String salePriceApp;
 
+    @JsonProperty("target_app_sale_price")
+    private void setAppSalePrice(String appSalePrice) {
+        this.salePriceApp = appSalePrice;
+    }
+
+    @JsonProperty("target_sale_price")
+    private void setSalePrice(String salePrice) {
+        if (this.salePriceApp == null) {
+            this.salePriceApp = salePrice;
+        }
+    }
     // Save affiliate link for later use
     private String affiliateLink;
 

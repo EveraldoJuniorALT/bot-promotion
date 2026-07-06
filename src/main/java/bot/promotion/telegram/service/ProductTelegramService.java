@@ -83,7 +83,7 @@ public class ProductTelegramService {
             try {
                 createParameters(productId, false);
             } catch (Exception e) {
-                notify.sendErrorMessage("Erro assíncrono ao processar  /post para o produto ID: " + productId, e);
+                notify.sendErrorMessage("Erro assíncrono ao processar /post para o produto ID: " + productId, e);
             }
         }, telegramExecutor);
     }
