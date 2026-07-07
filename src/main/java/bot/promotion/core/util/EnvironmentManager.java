@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.util.List;
 
 public class EnvironmentManager {
     private static final String MUMU_MANAGER_PATH = "C:\\Program Files\\Netease\\MuMuPlayer\\nx_device\\12.0\\shell\\MuMuNxDevice.exe";
@@ -16,7 +15,7 @@ public class EnvironmentManager {
         try {
             startAppiumServer();
             startEmulator();
-            connectAdb();
+            connectAdbToMuMu();
             System.out.println("Environment is ready.");
         } catch (Exception e) {
             System.out.println("Error preparing environment: " + e.getMessage());
@@ -33,9 +32,6 @@ public class EnvironmentManager {
                 shutdownMuMuInstance("0");
                 shutdownMuMuInstance("1");
 
-                killProcess("MuMuPlayer.exe");
-                killProcess("MuMuNxPlayer.exe");
-                killProcess("MuMuNxDevice.exe");
                 System.out.println("Environment shut down successfully.");
             } catch (Exception e) {
                 System.out.println("Error during shutdown: " + e.getMessage());
@@ -104,21 +100,46 @@ public class EnvironmentManager {
         }
     }
 
-    private static void connectAdb() throws IOException, InterruptedException {
-        List<String> adbPorts = List.of("127.0.0.1:16385", "127.0.0.1:16417");
+    private static void connectAdbToMuMu() {
+        System.out.println("Connecting ADB to MuMu instances (Dynamic Port Discovery)...");
 
-        for (String port : adbPorts) {
-            ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect " + port);
-            builder.redirectErrorStream(true);
-            Process process = builder.start();
+        String udid0 = discoverAndConnectAdb("Instance 0", 16384, 16394);
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("ADB (" + port + "): " + line);
+        String udid1 = discoverAndConnectAdb("Instance 1", 16416, 16426);
+
+        // Injects the discovered ports directly into the Spring Boot environment!
+        System.setProperty("mumu.udid.instance0", udid0);
+        System.setProperty("mumu.udid.instance1", udid1);
+    }
+
+    private static String discoverAndConnectAdb(String instanceName, int startPort, int endPort) {
+        for (int port = startPort; port <= endPort; port++) {
+            String udid = "127.0.0.1:" + port;
+            try {
+                ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect " + udid);
+                builder.redirectErrorStream(true);
+                Process process = builder.start();
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                String line;
+                boolean isConnected = false;
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.toLowerCase().contains("connected to")) {
+                        isConnected = true;
+                    }
+                }
+                process.waitFor();
+
+                if (isConnected) {
+                    System.out.println(">>> Success! " + instanceName + " found on port " + port);
+                    return udid; // Returns the correct port and ends the search for this instance
+                }
+            } catch (Exception e) {
+                System.out.println("Warning: Failed to attempt port:  " + port + " (" + e.getMessage() + ")");
             }
-            process.waitFor();
         }
+        throw new RuntimeException("Critical Failure: " + instanceName + " did not respond on any port between " + startPort + " and " + endPort);
     }
 
     private static boolean isPortInUse(int port) {

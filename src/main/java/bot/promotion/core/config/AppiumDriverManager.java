@@ -53,7 +53,7 @@ public class AppiumDriverManager {
         options.setCapability("appium:uiautomator2ServerLaunchTimeout", 60000);
         options.setCapability("appium:ignoreHiddenApiPolicyError", true);
 
-        options.setCapability("appium:skipServerInstallation", false);
+        options.setCapability("appium:skipServerInstallation", true);
 
         options.setAppPackage("com.alibaba.aliexpresshd");
         options.setCapability("appium:appWaitActivity", "*");
