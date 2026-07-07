@@ -4,9 +4,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.List;
 
 public class EnvironmentManager {
-    private static final String BLUESTACKS_PATH = "C:\\Program Files\\BlueStacks_nxt\\HD-Player.exe";
+    private static final String MUMU_MANAGER_PATH = "C:\\Program Files\\Netease\\MuMuPlayer\\nx_device\\12.0\\shell\\MuMuNxDevice.exe";
     private static final String APPIUM_PORT = "4723";
 
     public static void prepareEnvironment() {
@@ -28,7 +29,13 @@ public class EnvironmentManager {
             try {
                 killProcess("node.exe");
                 killProcess("cmd.exe");
-                killProcess("HD-Player.exe");
+
+                shutdownMuMuInstance("0");
+                shutdownMuMuInstance("1");
+
+                killProcess("MuMuPlayer.exe");
+                killProcess("MuMuNxPlayer.exe");
+                killProcess("MuMuNxDevice.exe");
                 System.out.println("Environment shut down successfully.");
             } catch (Exception e) {
                 System.out.println("Error during shutdown: " + e.getMessage());
@@ -67,38 +74,51 @@ public class EnvironmentManager {
         String line;
         boolean isRunning = false;
         while ((line = reader.readLine()) != null) {
-            if (line.contains("HD-Player.exe")) {
+            if (line.contains("MuMuNxDevice.exe")) {
                 isRunning = true;
                 break;
             }
         }
 
         if (!isRunning) {
-            System.out.println("Starting BlueStacks emulator...");
-            new ProcessBuilder(BLUESTACKS_PATH).start();
+            System.out.println("Starting MuMu emulator...");
+            launchMuMuInstance("0");
+            launchMuMuInstance("1");
+            System.out.println("MuMu emulator is already running.");
             try {
-                Thread.sleep(15000);
+                Thread.sleep(20000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
 
-        if (isRunning) {
-            System.out.println("BlueStacks emulator is already running.");
+    private static void launchMuMuInstance(String instanceIndex) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(
+                    MUMU_MANAGER_PATH, "api", "-v", instanceIndex, "launch_player"
+            );
+            builder.start();
+        } catch (IOException e) {
+            System.out.println("Error launching MuMu instance: #" + instanceIndex + " - " + e.getMessage());
         }
     }
 
     private static void connectAdb() throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect 127.0.0.1:5555");
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
+        List<String> adbPorts = List.of("127.0.0.1:16385", "127.0.0.1:16417");
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            System.out.println("ADB: " + line);
+        for (String port : adbPorts) {
+            ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect " + port);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("ADB (" + port + "): " + line);
+            }
+            process.waitFor();
         }
-        process.waitFor();
     }
 
     private static boolean isPortInUse(int port) {
@@ -111,5 +131,16 @@ public class EnvironmentManager {
 
     private static void killProcess(String processName) throws IOException {
         new ProcessBuilder("taskkill", "/F", "/IM", processName).start();
+    }
+
+    private static void shutdownMuMuInstance(String instanceIndex) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder(
+                    MUMU_MANAGER_PATH, "api", "-v", instanceIndex, "shutdown_player"
+            );
+            builder.start();
+        } catch (IOException e) {
+            System.out.println("Error occurred while shutting down MuMu instance: " + e.getMessage());
+        }
     }
 }

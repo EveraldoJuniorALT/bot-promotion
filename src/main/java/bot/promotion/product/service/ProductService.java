@@ -176,8 +176,7 @@ public class ProductService {
         List<String> affiliateLinks = isPostedIn72hOrLess ? productEntity.getAffiliateLinks() : urlService.createCoinUrl(hotProduct.getProductId());
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
-        BigDecimal discountCoinValue = isToday ? productEntity.getDiscountCoinValue() : aliexpressCoinService.processLink(affiliateLinks.getFirst());
-        if (discountCoinValue == null) return;
+        BigDecimal discountCoinValue = resolveDiscountValue(isToday, productEntity, affiliateLinks.getFirst());
 
         BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
         BigDecimal currentPrice = finalPriceService.calculateFinalPrice(hotProduct, bestSkuProduct, discountCoinValue);
@@ -187,6 +186,17 @@ public class ProductService {
         if (isEligible) {
             publishProduct(hotProduct, bestSkuProduct, affiliateLinks, discountCoinValue, true);
             persistenceManager.updateProduct(hotProduct.getProductId(), hotProduct, skuAllProduct, affiliateLinks, discountCoinValue);
+        }
+    }
+
+    private BigDecimal resolveDiscountValue(boolean isToday, Product productEntity, String affiliateLink) {
+        if (isToday) return productEntity.getDiscountCoinValue();
+
+        try {
+            return aliexpressCoinService.processLink(affiliateLink).join();
+        } catch (Exception e) {
+            notify.sendErrorMessage("Asynchronous failure when extracting coin to product id:: " + productEntity.getProductId(), e);
+            return null;
         }
     }
 

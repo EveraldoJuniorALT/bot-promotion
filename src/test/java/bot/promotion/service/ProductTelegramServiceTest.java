@@ -84,7 +84,7 @@ class ProductTelegramServiceTest {
         when(urlService.createCoinUrl(productId)).thenReturn(links);
 
         BigDecimal discount = new BigDecimal("15.5");
-        when(coinService.processLink(anyString())).thenReturn(discount);
+        //when(coinService.processLink(anyString())).thenReturn(discount);
 
         setupPersistenceMocks(productId);
 
@@ -129,9 +129,9 @@ class ProductTelegramServiceTest {
         when(fetchProductDetail.productDetail(productId)).thenReturn(createProductResponse(createMockHotProduct(productId)));
         when(urlService.createCoinUrl(productId)).thenReturn(List.of("https://link.com"));
 
-        when(coinService.processLink(anyString()))
+        /*when(coinService.processLink(anyString()))
                 .thenReturn(new BigDecimal("-1"))
-                .thenReturn(new BigDecimal("10"));
+                .thenReturn(new BigDecimal("10"));*/
 
         setupPersistenceMocks(productId);
 

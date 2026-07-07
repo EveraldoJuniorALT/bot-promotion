@@ -109,7 +109,7 @@ public class ProductTelegramService {
         List<String> affiliateLinks = (cachedData != null) ? cachedData.getAffiliateLinks() : createAndValidateLinks(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
-        BigDecimal coinPercentageDiscount = (cachedData != null) ? cachedData.getCoinPercentage() : extractAndValidateDiscount(affiliateLinks.getFirst());
+        BigDecimal coinPercentageDiscount = (cachedData != null) ? cachedData.getCoinPercentage() : getDiscountWithRetry(affiliateLinks.getFirst());
         if (coinPercentageDiscount == null) return;
 
         /*
@@ -120,7 +120,7 @@ public class ProductTelegramService {
 
         List<SkuProduct> skuProducts = getOrBuildSku(productDetail);
         if (skuProducts == null || skuProducts.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 122: " + productId);
+            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 123: " + productId);
             return;
         }
 
@@ -130,7 +130,7 @@ public class ProductTelegramService {
     private HotProduct fetchAndValidateProduct(String productId) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            notify.sendWarningMessage("Process stopped: No product detail found for product ID in line 132 on ProductTelegramService: " + productId);
+            notify.sendWarningMessage("Process stopped: No product detail found for product ID in line 133 on ProductTelegramService: " + productId);
             return null;
         }
         return productDetail;
@@ -139,32 +139,19 @@ public class ProductTelegramService {
     private List<String> createAndValidateLinks(String productId) {
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            notify.sendWarningMessage("Process stopped: No affiliate created for product ID in line 141 on ProductTelegramService: " + productId);
+            notify.sendWarningMessage("Process stopped: No affiliate created for product ID in line 142 on ProductTelegramService: " + productId);
             return null;
         }
         return affiliateLinks;
     }
 
-    private BigDecimal extractAndValidateDiscount(String link) {
-        BigDecimal coinPercentageDiscount = getDiscountWithRetry(link);
-        if (isDiscountInvalid(coinPercentageDiscount)) {
-            notify.sendWarningMessage("Process stopped: No coin percentage discount extracted for link in line 150 on ProductTelegramService: " + link);
-            return null;
-        }
-        return coinPercentageDiscount;
-    }
-
     private BigDecimal getDiscountWithRetry(String link) {
-        BigDecimal discount = coinService.processLink(link);
-        if (isDiscountInvalid(discount)) {
-            notify.sendInfoMessage("Retrying to extract coin discount");
-            discount = coinService.processLink(link);
+        try {
+            return coinService.processLink(link).join();
+        } catch (Exception e) {
+            notify.sendErrorMessage("Error extracting discount for link in line 152 on ProductTelegramService: " + link, e);
+            return new BigDecimal(1);
         }
-        return discount;
-    }
-
-    private boolean isDiscountInvalid(BigDecimal discount) {
-        return discount == null || discount.compareTo(BigDecimal.ZERO) < 0;
     }
 
     private void saveCacheProduct(String productId, List<String> affiliateLinks, BigDecimal coinPercentage) {
@@ -235,7 +222,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 237 on ProductTelegramService: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 225 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -248,7 +235,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 250 on ProductTelegramService: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 238 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -259,7 +246,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 261 on ProductTelegramService: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 249 on ProductTelegramService: " + productDetail.getProductId());
         return null;
     }
 

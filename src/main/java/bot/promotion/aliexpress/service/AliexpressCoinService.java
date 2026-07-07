@@ -1,6 +1,6 @@
 package bot.promotion.aliexpress.service;
 
-import bot.promotion.core.config.AppiumDriverManager;
+import bot.promotion.core.config.EmulatorPoolManager;
 import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
@@ -12,43 +12,51 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class AliexpressCoinService {
-    private final AppiumDriverManager driverManager;
     private final NotificationService notify;
     private static final Pattern EXTRACT_DISCOUNT_PATTERN = Pattern.compile("(\\d+)%");
+    private final Executor emulatorTaskExecutor;
+    private final EmulatorPoolManager poolManager;
 
-    public BigDecimal processLink(String link) {
-        if (link == null || link.isBlank()) {
-            notify.sendWarningMessage("Links is null or blank.");
-            return null;
-        }
+    public CompletableFuture<BigDecimal> processLink(String link) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (link == null || link.isBlank()) {
+                notify.sendWarningMessage("Links is null or blank.");
+                return null;
+            }
 
-        BigDecimal coinPercentage = executeProcess(link);
-        if (coinPercentage != null) {
-            return coinPercentage;
-        }
-        try {
-            coinPercentage = executeProcess(link);
-            return coinPercentage != null ? coinPercentage : new BigDecimal("1");
-        } catch (Exception e) {
-            notify.sendErrorMessage("Error during retry: ", e);
-            return null;
-        }
+            AndroidDriver driver = null;
+            try {
+                driver = poolManager.acquireDriver();
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+
+                return executeProcess(driver, link, wait);
+            } catch (InterruptedException e) {
+                notify.sendErrorMessage("Interrupted while processing link in line 44 on AliexpressCoinService: " + link, e);
+                return new BigDecimal(1);
+            } finally {
+                if (driver != null) poolManager.releaseDriver(driver);
+            }
+
+        }, emulatorTaskExecutor);
     }
 
-    private BigDecimal executeProcess(String link) {
-        AndroidDriver driver = driverManager.getDriver();
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
-
+    private BigDecimal executeProcess(AndroidDriver driver, String link, WebDriverWait wait) {
         openLink(driver, link, wait);
         clickFirstProduct(driver);
 
-        return extractExtraDiscount(wait);
+        BigDecimal coinPercentage = extractExtraDiscount(wait);
+        if (coinPercentage != null) return coinPercentage;
+
+        coinPercentage = extractExtraDiscount(wait);
+        return coinPercentage != null ? coinPercentage : new BigDecimal("1");
     }
 
     private void openLink(AndroidDriver driver, String link, WebDriverWait wait) {

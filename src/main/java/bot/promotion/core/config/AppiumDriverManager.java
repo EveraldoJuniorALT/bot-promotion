@@ -1,9 +1,9 @@
 package bot.promotion.core.config;
 
-import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.MalformedURLException;
@@ -13,45 +13,52 @@ import java.time.Duration;
 @Service
 @RequiredArgsConstructor
 public class AppiumDriverManager {
-    private final UiAutomator2Options options;
-    private AndroidDriver driver;
-    private final NotificationService notify;
-    public synchronized AndroidDriver getDriver() {
-        if (driver == null) {
-            createDriver();
-        }
-        if (driver != null) {
-            try {
-                driver.getCurrentPackage();
-            } catch (Exception e) {
-                notify.sendErrorMessage("Appium driver session is invalid, recreating driver: ", e);
-                quitDriver();
-                createDriver();
-            }
-        }
-        return driver;
-    }
 
-    private void createDriver() {
+    @Value("${appium.server.url:http://127.0.0.1:4723/}")
+    private String appiumServerUrl;
+
+    /*
+     * Cria um instância independente do AndroidDriver para o paralelismo
+     * @param emulatorUdId O endereço IP e porta do emulador
+     * @param appiumServerPort Porta exclusiva do UiAutomator2 para evitar conflito de threads
+     * @return AndroidDriver configurado para instância específica
+     */
+    public AndroidDriver createDriver(String emulatorUdId, int appiumServerPort) {
         try {
-            driver = new AndroidDriver(new URL("http://127.0.0.1:4723/"), options);
+            UiAutomator2Options options = getOptions(emulatorUdId, appiumServerPort);
+
+            AndroidDriver driver = new AndroidDriver(new URL(appiumServerUrl), options);
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
+            return driver;
         } catch (MalformedURLException e) {
+            System.out.println("Invalid Appium server URL: " + e.getMessage());
             throw new RuntimeException("Invalid Appium server URL: " + e.getMessage());
-        } catch (Exception e) {
-            System.out.println("Error creating Appium driver: " + e.getMessage());
-            throw new RuntimeException("Failed to create Appium driver: " + e.getMessage(), e);
         }
     }
 
-    private void quitDriver() {
-        if (driver != null) {
-            try {
-                driver.quit();
-            } catch (Exception e) {
-                notify.sendErrorMessage("Error quitting Appium driver: ", e);
-            }
-            driver = null;
-        }
+    private UiAutomator2Options getOptions(String emulatorUdId, int appiumServerPort) {
+        UiAutomator2Options options = new UiAutomator2Options();
+        options.setPlatformName("Android");
+        options.setAutomationName("UiAutomator2");
+        options.setDeviceName("MuMuPlayer-" + emulatorUdId);
+        options.setUdid(emulatorUdId);
+        options.setSystemPort(appiumServerPort);
+
+        //Keep the session alive for 24 hours to avoid frequent restarts
+        options.setCapability("appium:newCommandTimeout", 86400);
+
+        options.setCapability("appium:enforceAppInstall", true);
+        options.setCapability("appium:suppressKillServer", true);
+        options.setCapability("appium:adbExecTimeout", 1200000);
+        options.setCapability("appium:uiautomator2ServerLaunchTimeout", 60000);
+        options.setCapability("appium:ignoreHiddenApiPolicyError", true);
+
+        options.setCapability("appium:skipServerInstallation", false);
+
+        options.setAppPackage("com.alibaba.aliexpresshd");
+        options.setCapability("appium:appWaitActivity", "*");
+        options.setCapability("appium:appWaitForLaunch", false);
+        options.setNoReset(true);
+        return options;
     }
 }
