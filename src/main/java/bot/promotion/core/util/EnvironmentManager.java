@@ -128,30 +128,38 @@ public class EnvironmentManager {
     }
 
     private static String discoverAndConnectAdb(String instanceName, int startPort, int endPort) {
-        for (int port = startPort; port <= endPort; port++) {
-            String udid = "127.0.0.1:" + port;
-            try {
-                ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect " + udid);
-                builder.redirectErrorStream(true);
-                Process process = builder.start();
+        int maxAttempts = 30;
+        for (int i = 0; i < maxAttempts; i++) {
+            for (int port = startPort; port <= endPort; port++) {
+                String udid = "127.0.0.1:" + port;
+                try {
+                    ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "adb connect " + udid);
+                    builder.redirectErrorStream(true);
+                    Process process = builder.start();
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String line;
-                boolean isConnected = false;
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    String line;
+                    boolean isConnected = false;
 
-                while ((line = reader.readLine()) != null) {
-                    if (line.toLowerCase().contains("connected to") || line.toLowerCase().contains("already connected")) {
-                        isConnected = true;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.toLowerCase().contains("connected to") || line.toLowerCase().contains("already connected")) {
+                            isConnected = true;
+                        }
                     }
-                }
-                process.waitFor();
+                    process.waitFor();
 
-                if (isConnected) {
-                    System.out.println(">>> Success! " + instanceName + " found on port " + port);
-                    return udid; // Returns the correct port and ends the search for this instance
+                    if (isConnected) {
+                        System.out.println(">>> Success! " + instanceName + " found on port " + port);
+                        return udid; // Returns the correct port and ends the search for this instance
+                    }
+                } catch (Exception e) {
+                    System.out.println("Warning: Failed to attempt port:  " + port + " (" + e.getMessage() + ")");
                 }
-            } catch (Exception e) {
-                System.out.println("Warning: Failed to attempt port:  " + port + " (" + e.getMessage() + ")");
+            }
+            try {
+                Thread.sleep(2000); // Pausa 2 segundos antes de tentar varrer as portas de novo
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
         throw new RuntimeException("Critical Failure: " + instanceName + " did not respond on any port between " + startPort + " and " + endPort);
@@ -173,8 +181,14 @@ public class EnvironmentManager {
                     Thread.sleep(3000);
                     return;
                 }
+                Thread.sleep(2000);
             } catch (Exception e) {
-                // Ignore it and keep trying
+                // Se der erro (ex: ADB travou), espera 2 segundos também para não criar um loop infinito e rápido
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
         throw new RuntimeException("Critical failure: The emulator " + udid + "took a long time to turn on or crashed");

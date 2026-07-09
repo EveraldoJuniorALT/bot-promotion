@@ -146,7 +146,7 @@ public class ProductTelegramService {
     private HotProduct fetchAndValidateProduct(String productId) {
         HotProduct productDetail = processToFetchProductDetail(productId);
         if (productDetail == null) {
-            notify.sendWarningMessage("Process stopped: No product detail found for product ID in line 133 on ProductTelegramService: " + productId);
+            notify.sendWarningMessage("Process stopped: No product detail found for product ID in line 149 on ProductTelegramService: " + productId);
             return null;
         }
         return productDetail;
@@ -155,7 +155,7 @@ public class ProductTelegramService {
     private List<String> createAndValidateLinks(String productId) {
         List<String> affiliateLinks = urlService.createCoinUrl(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) {
-            notify.sendWarningMessage("Process stopped: No affiliate created for product ID in line 142 on ProductTelegramService: " + productId);
+            notify.sendWarningMessage("Process stopped: No affiliate created for product ID in line 158 on ProductTelegramService: " + productId);
             return null;
         }
         return affiliateLinks;
