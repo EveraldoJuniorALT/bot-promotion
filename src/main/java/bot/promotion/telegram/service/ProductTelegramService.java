@@ -38,6 +38,7 @@ public class ProductTelegramService {
     private final ChooseBetterSku chooseBetterSku;
     private final ProductPersistenceManager persistenceManager;
     private final Executor telegramExecutor;
+    private final Executor apiExecutor;
 
     public ProductTelegramService(
             SkuProductInfo skuProductInfo,
@@ -51,7 +52,8 @@ public class ProductTelegramService {
             ProductProcessedCache productProcessedCache,
             ChooseBetterSku chooseBetterSku,
             ProductPersistenceManager persistenceManager,
-            @Qualifier("telegramExecutor") Executor telegramExecutor) {
+            @Qualifier("telegramExecutor") Executor telegramExecutor,
+            @Qualifier("apiExecutor") Executor apiExecutor) {
         this.skuProductInfo = skuProductInfo;
         this.fetchProductDetail = fetchProductDetail;
         this.telegramSenderService = telegramSenderService;
@@ -64,6 +66,7 @@ public class ProductTelegramService {
         this.chooseBetterSku = chooseBetterSku;
         this.persistenceManager = persistenceManager;
         this.telegramExecutor = telegramExecutor;
+        this.apiExecutor = apiExecutor;
     }
 
 
@@ -109,22 +112,35 @@ public class ProductTelegramService {
         List<String> affiliateLinks = (cachedData != null) ? cachedData.getAffiliateLinks() : createAndValidateLinks(productId);
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
-        BigDecimal coinPercentageDiscount = (cachedData != null) ? cachedData.getCoinPercentage() : getDiscountWithRetry(affiliateLinks.getFirst());
-        if (coinPercentageDiscount == null) return;
+        CompletableFuture<List<SkuProduct>> skuFuture = CompletableFuture.supplyAsync(
+                () -> getOrBuildSku(productDetail),
+                apiExecutor
+        );
 
-        /*
-         * Save affiliateLinks and coinPercentageDiscount in cache to avoid unnecessary calls to external services.
-         * This is especially useful for the coin percentage discount, as it requires a more complex and time-consuming process
-         */
-        saveCacheProduct(productId, affiliateLinks, coinPercentageDiscount);
+        CompletableFuture<BigDecimal> coinFuture = (cachedData != null)
+                ? CompletableFuture.completedFuture(cachedData.getCoinPercentage())
+                : coinService.processLink(affiliateLinks.getFirst());
 
-        List<SkuProduct> skuProducts = getOrBuildSku(productDetail);
-        if (skuProducts == null || skuProducts.isEmpty()) {
-            notify.sendWarningMessage("No SKU to process for publishing for product ID in line 123: " + productId);
-            return;
+        // Combine the two tasks and wait for them to finish
+        CompletableFuture.allOf(skuFuture, coinFuture).join();
+
+        try {
+            BigDecimal coinPercentageDiscount = coinFuture.get();
+            List<SkuProduct> skuProducts = skuFuture.get();
+
+            if (coinPercentageDiscount == null || skuProducts == null || skuProducts.isEmpty()) {
+                notify.sendWarningMessage("Process stopped: Incomplete product data for product ID in line 132 on ProductTelegramService: " + productId);
+                return;
+            }
+            /*
+             * Save affiliateLinks and coinPercentageDiscount in cache to avoid unnecessary calls to external services.
+             * This is especially useful for the coin percentage discount, as it requires a more complex and time-consuming process
+             */
+            saveCacheProduct(productId, affiliateLinks, coinPercentageDiscount);
+            publishAndUpdateProduct(productId, skuProducts, affiliateLinks, coinPercentageDiscount, productDetail, shouldSave);
+        } catch (Exception e) {
+            notify.sendErrorMessage("Error processing futures in line 142 on ProductTelegramService for product id " + productId, e);
         }
-
-        publishAndUpdateProduct(productId, skuProducts, affiliateLinks, coinPercentageDiscount, productDetail, shouldSave);
     }
 
     private HotProduct fetchAndValidateProduct(String productId) {
@@ -143,15 +159,6 @@ public class ProductTelegramService {
             return null;
         }
         return affiliateLinks;
-    }
-
-    private BigDecimal getDiscountWithRetry(String link) {
-        try {
-            return coinService.processLink(link).join();
-        } catch (Exception e) {
-            notify.sendErrorMessage("Error extracting discount for link in line 152 on ProductTelegramService: " + link, e);
-            return new BigDecimal(1);
-        }
     }
 
     private void saveCacheProduct(String productId, List<String> affiliateLinks, BigDecimal coinPercentage) {
@@ -222,7 +229,7 @@ public class ProductTelegramService {
                 !productDetailResponse.getRespResult().getResult().getProductsList().isEmpty()) {
             return productDetailResponse.getRespResult().getResult().getProductsList().getFirst();
         }
-        notify.sendWarningMessage("No product detail found for product ID in line 225 on ProductTelegramService: " + productId);
+        notify.sendWarningMessage("No product detail found for product ID in line 232 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -235,7 +242,7 @@ public class ProductTelegramService {
                 !skuInfo.getRespResult().getResult().getSkuProductsList().isEmpty()) {
             return skuInfo.getRespResult().getResult().getSkuProductsList();
         }
-        notify.sendWarningMessage("No Sku product info found for product ID in line 238 on ProductTelegramService: " + productId);
+        notify.sendWarningMessage("No Sku product info found for product ID in line 245 on ProductTelegramService: " + productId);
         return null;
     }
 
@@ -246,7 +253,7 @@ public class ProductTelegramService {
                 shippingResponse.getRespResult().getShippingInfo() != null) {
             return shippingResponse.getRespResult().getShippingInfo();
         }
-        notify.sendWarningMessage("No shipping info found for product ID in line 249 on ProductTelegramService: " + productDetail.getProductId());
+        notify.sendWarningMessage("No shipping info found for product ID in line 256 on ProductTelegramService: " + productDetail.getProductId());
         return null;
     }
 

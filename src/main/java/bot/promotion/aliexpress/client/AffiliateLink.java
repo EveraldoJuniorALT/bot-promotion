@@ -38,7 +38,7 @@ public class AffiliateLink {
     public List<String> generateAffiliateLink(String productUrlApp, String productUrlPc) {
         String accessToken = getValidAccessToken();
         if (accessToken == null) {
-            notify.sendWarningMessage("Access token is null in line 46");
+            notify.sendWarningMessage("Access token is null in line 41");
             return null;
         }
         String allUrls = productUrlApp + "," + productUrlPc;
@@ -105,7 +105,7 @@ public class AffiliateLink {
                     .map(AffiliateLinkResponse.PromotionLinkItem::getPromotionLink)
                     .toList();
         } catch (Exception e) {
-            notify.sendErrorMessage("Error parsing JSON response in line 113: ", e);
+            notify.sendErrorMessage("Error parsing JSON response in line 108: ", e);
             return null;
         }
     }

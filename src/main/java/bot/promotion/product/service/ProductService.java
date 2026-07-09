@@ -139,22 +139,42 @@ public class ProductService {
         List<Product> existingDbProducts = persistenceManager.findProductsBatch(productIds);
         Map<String, Product> dBProductsMap = existingDbProducts.stream().collect(Collectors.toMap(Product::getProductId, existingProduct -> existingProduct));
 
+        List<HotProduct> slowLaneProducts = new ArrayList<>();
+        List<HotProduct> fastLaneProducts = new ArrayList<>();
 
-        List<CompletableFuture<Void>> futures = filteredProducts.stream()
+        filteredProducts.forEach(product -> {
+            if (dBProductsMap.containsKey(product.getProductId())) {
+                slowLaneProducts.add(product);
+                return;
+            }
+            fastLaneProducts.add(product);
+        });
+
+        List<CompletableFuture<Void>> fastLaneFutures = fastLaneProducts.stream()
                 .map(hp -> CompletableFuture.runAsync(() -> {
                     try {
-                        if (dBProductsMap.containsKey(hp.getProductId())) {
-                            processExistingDbProduct(hp, dBProductsMap);
-                            return;
-                        }
                         processNoExistingDbProduct(hp);
                     } catch (Exception e) {
-                        notify.sendErrorMessage("Falha assíncrona ao processar produto ID: " + hp.getProductId(), e);
+                        notify.sendErrorMessage("fast lane async processing fails for product ID " + hp.getProductId(), e);
                     }
                 }, apiExecutor))
                 .toList();
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        List<CompletableFuture<Void>> slowLaneFutures = slowLaneProducts.stream()
+                .map(hp -> CompletableFuture.runAsync(() -> {
+                    try {
+                        processExistingDbProduct(hp, dBProductsMap);
+                    } catch (Exception e) {
+                        notify.sendErrorMessage("slow lane async processing fails for product ID " + hp.getProductId(), e);
+                    }
+                }, apiExecutor))
+                .toList();
+
+        List<CompletableFuture<Void>> allFutures = new ArrayList<>();
+        allFutures.addAll(fastLaneFutures);
+        allFutures.addAll(slowLaneFutures);
+
+        CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[0])).join();
         notify.sendInfoMessage("Automatic channel processing was successful");
     }
 
@@ -195,7 +215,7 @@ public class ProductService {
         try {
             return aliexpressCoinService.processLink(affiliateLink).join();
         } catch (Exception e) {
-            notify.sendErrorMessage("Asynchronous failure when extracting coin to product id:: " + productEntity.getProductId(), e);
+            notify.sendErrorMessage("Asynchronous failure when extracting coin to product id: " + productEntity.getProductId(), e);
             return null;
         }
     }

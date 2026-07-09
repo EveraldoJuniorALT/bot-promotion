@@ -39,7 +39,7 @@ public class AliexpressCoinService {
 
                 return executeProcess(driver, link, wait);
             } catch (InterruptedException e) {
-                notify.sendErrorMessage("Interrupted while processing link in line 44 on AliexpressCoinService: " + link, e);
+                notify.sendErrorMessage("Interrupted while processing link in line 42 on AliexpressCoinService: " + link, e);
                 return new BigDecimal(1);
             } finally {
                 if (driver != null) poolManager.releaseDriver(driver);

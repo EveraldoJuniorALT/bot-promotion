@@ -56,7 +56,7 @@ public class ProductPersistenceManager {
             productRepository.saveAndFlush(product);
             updateAveragePrice(product);
         } catch (Exception e) {
-            notify.sendErrorMessage("CRITICAL ERROR: Failed to update database entity in line 47 for Product ID " + hotProduct.getProductId(), e);
+            notify.sendErrorMessage("CRITICAL ERROR: Failed to update database entity in line 59' for Product ID " + hotProduct.getProductId(), e);
         }
     }
 

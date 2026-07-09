@@ -39,7 +39,7 @@ public class AliexpressAuthService {
 
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
             if (!response.isSuccess()) {
-                notify.sendWarningMessage("Answer from API is null in line 49 on AliexpressAuthService.exchangeCodeForToken");
+                notify.sendWarningMessage("Answer from API is null in line 42 on AliexpressAuthService.exchangeCodeForToken");
                 return;
             }
 
@@ -56,7 +56,7 @@ public class AliexpressAuthService {
             tokenRepository.save(tokenEntity);
             System.out.println("Saved in DB successfully");
         } catch (HttpClientErrorException e) {
-            notify.sendErrorMessage("Http error when calling Aliexpress API, Line 66 on AliexpressAuthService.exchangeCodeForToken: ", e);
+            notify.sendErrorMessage("Http error when calling Aliexpress API, Line 59 on AliexpressAuthService.exchangeCodeForToken: ", e);
         } catch (Exception e) {
             notify.sendErrorMessage("Error in line 68 on AliexpressAuthService.exchangeCodeForToken ", e);
         }
@@ -80,7 +80,7 @@ public class AliexpressAuthService {
             IopResponse response = iopClient.execute(iopRequest, Protocol.GOP);
 
             if (!response.isSuccess()) {
-                notify.sendWarningMessage("Answer from API is null, access token not renewed. Line 90 ");
+                notify.sendWarningMessage("Answer from API is null, access token not renewed. Line 83 ");
                 return;
             }
 
@@ -94,7 +94,7 @@ public class AliexpressAuthService {
             tokenRepository.save(currentToken);
             System.out.println("Successfully! AccessToken renewed in DB");
         } catch (HttpClientErrorException e) {
-            notify.sendErrorMessage("Http error when calling Ali API in line 104 on AliexpressAuthService.refreshToken: ", e);
+            notify.sendErrorMessage("Http error when calling Ali API in line 97 on AliexpressAuthService.refreshToken: ", e);
         } catch (Exception e) {
             notify.sendErrorMessage("Error in line 106 on AliexpressAuthService.refreshToken", e);
         }

@@ -122,7 +122,7 @@ public class AliexpressApiClient {
         try {
             return iopClient.execute(request, accessToken);
         } catch (ApiException e) {
-            notify.sendErrorMessage("Error executing API request in line 126: ", e);
+            notify.sendErrorMessage("Error executing API request in line 125: ", e);
             return null;
         }
     }
