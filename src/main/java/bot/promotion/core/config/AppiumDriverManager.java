@@ -3,19 +3,15 @@ package bot.promotion.core.config;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class AppiumDriverManager {
-
-    @Value("${appium.server.url:http://127.0.0.1:4723/}")
-    private String appiumServerUrl;
 
     /*
      * Cria um instância independente do AndroidDriver para o paralelismo
@@ -23,11 +19,11 @@ public class AppiumDriverManager {
      * @param appiumServerPort Porta exclusiva do UiAutomator2 para evitar conflito de threads
      * @return AndroidDriver configurado para instância específica
      */
-    public AndroidDriver createDriver(String emulatorUdId, int appiumServerPort) {
+    public AndroidDriver createDriver(String emulatorUdId, int appiumServerPort, String appiumServerUrl) {
         try {
             UiAutomator2Options options = getOptions(emulatorUdId, appiumServerPort);
 
-            AndroidDriver driver = new AndroidDriver(new URL(appiumServerUrl), options);
+            AndroidDriver driver = new AndroidDriver(URI.create(appiumServerUrl).toURL(), options);
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
             return driver;
         } catch (MalformedURLException e) {

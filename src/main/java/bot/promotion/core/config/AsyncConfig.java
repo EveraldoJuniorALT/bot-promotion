@@ -1,5 +1,6 @@
 package bot.promotion.core.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -12,7 +13,9 @@ import java.util.concurrent.Executor;
 @Component
 @EnableAsync
 @EnableScheduling
+@RequiredArgsConstructor
 public class AsyncConfig {
+    private final AppiumProperties appiumProperties;
 
     @Bean(name = "taskScheduler")
     public ThreadPoolTaskScheduler taskScheduler() {
@@ -47,9 +50,12 @@ public class AsyncConfig {
 
     @Bean(name = "emulatorTaskExecutor")
     public Executor emulatorTaskExecutor() {
+        int activeEmulatorsCount = (appiumProperties.getEmulators() != null)
+                ? appiumProperties.getEmulators().size()
+                : 2; // Fallback to 2 if emulator list is null
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
+        executor.setCorePoolSize(activeEmulatorsCount);
+        executor.setMaxPoolSize(activeEmulatorsCount * 2);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("EmulatorWorker-");
         executor.initialize();

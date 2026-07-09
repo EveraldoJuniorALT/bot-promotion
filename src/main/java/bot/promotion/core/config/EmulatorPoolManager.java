@@ -4,42 +4,45 @@ import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.android.AndroidDriver;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 @Component
+@RequiredArgsConstructor
 public class EmulatorPoolManager {
     private final NotificationService notify;
     private final AppiumDriverManager driverManager;
-    private final BlockingQueue<AndroidDriver> driverPool;
+    private final AppiumProperties appiumProperties;
 
-    @Value("${mumu.udid.instance0}")
-    private String udidInstance0;
-
-    @Value("${mumu.udid.instance1}")
-    private String udidInstance1;
-
-    public EmulatorPoolManager(NotificationService notify, AppiumDriverManager driverManager) {
-        this.notify = notify;
-        this.driverManager = driverManager;
-        this.driverPool = new ArrayBlockingQueue<>(2);
-    }
+    private BlockingQueue<AndroidDriver> driverPool;
 
     @PostConstruct
     private void initializePool() {
-        AndroidDriver driver0 = driverManager.createDriver(udidInstance0, 8200);
-        AndroidDriver driver1 = driverManager.createDriver(udidInstance1, 8201);
+        List<AppiumProperties.EmulatorConfig> emulatorProperties = this.appiumProperties.getEmulators();
 
-        try {
-            driverPool.add(driver0);
-            driverPool.add(driver1);
-            notify.sendInfoMessage("Pool initialized successfully. 2 emulators ready to use.");
-        } catch (IllegalStateException e) {
-            notify.sendErrorMessage("Critical failure: Attempt to add emulators to a full pool!", e);
-            throw e; // Interrompe a subida do Spring, pois o ambiente está comprometido
+        if (emulatorProperties == null || emulatorProperties.isEmpty()) throw new IllegalStateException("Emulator properties are empty");
+
+        int poolSize = emulatorProperties.size();
+        this.driverPool = new ArrayBlockingQueue<>(poolSize);
+
+        for (int i = 0; i < poolSize; i++) {
+            AppiumProperties.EmulatorConfig emulatorConfig = emulatorProperties.get(i);
+
+            AndroidDriver driver = driverManager.createDriver(
+                    emulatorConfig.getUdid(),
+                    emulatorConfig.getSystemPort(),
+                    emulatorConfig.getServerUrl()
+            );
+
+            boolean added = driverPool.offer(driver);
+            if (!added) {
+                notify.sendErrorMessage("Critical failure: Attempt to add emulator to a pool! in line 43 on EmulatorPoolManager", null);
+                throw new IllegalStateException("Attempt to add emulator to a pool!");
+            }
         }
     }
 
