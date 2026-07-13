@@ -59,6 +59,7 @@ public class TelegramMessageFormatter {
         message.append(" + ").append(coins).append(" Moedas \n\n");
         message.append("🔗 ").append(affiliateLinks.getFirst()).append("\n\n");
         message.append("❗ Super desconto Apenas no APP, após abrir o link, o produto vai estar na 1ª posição da pág de moedas. \n\n");
+        message.append("❗ Verifique se tem cupom do vendedor. \n\n");
         message.append("Link para PC sem super desconto: ").append(affiliateLinks.getLast()).append("\n\n");
         message.append("🚀 Grupo de Ofertas: ").append("https://t.me/GarimpDeOfertas").append("\n\n");
 

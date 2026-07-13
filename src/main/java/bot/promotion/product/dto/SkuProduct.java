@@ -7,7 +7,6 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SkuProduct {
-    @JsonProperty("shipping_fees")
     private String shippingFees;
 
     @JsonProperty("color")
