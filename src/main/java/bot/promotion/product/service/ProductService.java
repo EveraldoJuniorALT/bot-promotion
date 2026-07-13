@@ -213,7 +213,7 @@ public class ProductService {
         if (isToday) return productEntity.getDiscountCoinValue();
 
         try {
-            return aliexpressCoinService.processLink(affiliateLink).join();
+            return aliexpressCoinService.processLink(affiliateLink, false).join();
         } catch (Exception e) {
             notify.sendErrorMessage("Asynchronous failure when extracting coin to product id: " + productEntity.getProductId(), e);
             return null;

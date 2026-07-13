@@ -5,13 +5,18 @@ import bot.promotion.telegram.service.NotificationService;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import lombok.RequiredArgsConstructor;
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
@@ -25,7 +30,7 @@ public class AliexpressCoinService {
     private final Executor emulatorTaskExecutor;
     private final EmulatorPoolManager poolManager;
 
-    public CompletableFuture<BigDecimal> processLink(String link) {
+    public CompletableFuture<BigDecimal> processLink(String link, boolean isPriority) {
         return CompletableFuture.supplyAsync(() -> {
             if (link == null || link.isBlank()) {
                 notify.sendWarningMessage("Links is null or blank.");
@@ -34,8 +39,8 @@ public class AliexpressCoinService {
 
             AndroidDriver driver = null;
             try {
-                driver = poolManager.acquireDriver();
-                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+                driver = poolManager.acquireDriver(isPriority);
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(60));
 
                 return executeProcess(driver, link, wait);
             } catch (InterruptedException e) {
@@ -51,6 +56,7 @@ public class AliexpressCoinService {
     private BigDecimal executeProcess(AndroidDriver driver, String link, WebDriverWait wait) {
         openLink(driver, link, wait);
         clickFirstProduct(driver);
+        scrollDown(driver);
 
         BigDecimal coinPercentage = extractExtraDiscount(wait);
         if (coinPercentage != null) return coinPercentage;
@@ -76,15 +82,48 @@ public class AliexpressCoinService {
         }
     }
 
+    private void scrollDown(AndroidDriver driver) {
+        try {
+            Thread.sleep(3000);
+
+            Dimension size = driver.manage().window().getSize();
+
+            int startX = size.getWidth() / 2;
+            int startY = (int) (size.getWidth() * 0.7);
+            int endy = (int) (size.getHeight() * 0.3);
+
+            PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+            Sequence swipe = new Sequence(finger, 1);
+
+            swipe.addAction(finger.createPointerMove(Duration.ofMillis(0), PointerInput.Origin.viewport(), startX, startY));
+            swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            swipe.addAction(finger.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), startX, endy));
+            swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+            driver.perform(Collections.singletonList(swipe));
+        } catch (InterruptedException e) {
+            notify.sendErrorMessage("Error scrolling down: ", e);
+        }
+    }
+
     private BigDecimal extractExtraDiscount(WebDriverWait wait) {
         try {
             WebElement elementExtra = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                    AppiumBy.accessibilityId("taxIcon")
+                    AppiumBy.xpath("//android.widget.TextView[@content-desc=\"taxIcon\"]")
             ));
-            String clearText = clearText(elementExtra.getText());
-            return clearText != null ? new BigDecimal(clearText) : null;
-        } catch (NumberFormatException e) {
-            notify.sendErrorMessage("No extra discount found or invalid format for BigDecimal.", e);
+            String rawText = elementExtra.getText();
+
+            if (!rawText.isBlank()) {
+                String clearText = clearText(rawText);
+                return clearText != null ? new BigDecimal(clearText) : null;
+            }
+
+            return null;
+        } catch (TimeoutException e) {
+            notify.sendWarningMessage("timeout: could not find taxIcon element, trying again");
+            return null;
+        } catch (Exception e) {
+            notify.sendErrorMessage("Unexpected error when fetching the extra discount", e);
             return null;
         }
     }

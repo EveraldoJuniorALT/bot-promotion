@@ -91,7 +91,7 @@ class ProductTelegramServiceTest {
         service.processSaveProductUrl(productId);
 
         verify(urlService).createCoinUrl(productId);
-        verify(coinService).processLink(links.getFirst());
+        verify(coinService).processLink(links.getFirst(), true);
         verify(productProcessedCache).saveToCache(eq(productId), eq(links), eq(discount));
         verify(telegramSenderService).sendPhotoMessage(any(), any(), anyBoolean());
     }
@@ -117,7 +117,7 @@ class ProductTelegramServiceTest {
         service.processSaveProductUrl(productId);
 
         verify(urlService, never()).createCoinUrl(anyString());
-        verify(coinService, never()).processLink(anyString());
+        verify(coinService, never()).processLink(anyString(), true);
         verify(telegramSenderService).sendPhotoMessage(any(), any(), anyBoolean());
     }
 
@@ -137,7 +137,7 @@ class ProductTelegramServiceTest {
 
         service.processSaveProductUrl(productId);
 
-        verify(coinService, times(2)).processLink(anyString());
+        verify(coinService, times(2)).processLink(anyString(), true);
         verify(notify).sendInfoMessage(contains("Retrying"));
     }
 

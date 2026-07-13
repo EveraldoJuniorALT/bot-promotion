@@ -119,7 +119,7 @@ public class ProductTelegramService {
 
         CompletableFuture<BigDecimal> coinFuture = (cachedData != null)
                 ? CompletableFuture.completedFuture(cachedData.getCoinPercentage())
-                : coinService.processLink(affiliateLinks.getFirst());
+                : coinService.processLink(affiliateLinks.getFirst(), true);
 
         // Combine the two tasks and wait for them to finish
         CompletableFuture.allOf(skuFuture, coinFuture).join();
