@@ -142,12 +142,12 @@ public class ProductService {
         List<HotProduct> slowLaneProducts = new ArrayList<>();
         List<HotProduct> fastLaneProducts = new ArrayList<>();
 
-        filteredProducts.forEach(product -> {
-            if (dBProductsMap.containsKey(product.getProductId())) {
-                slowLaneProducts.add(product);
+        filteredProducts.forEach(hotProduct -> {
+            if (dBProductsMap.containsKey(hotProduct.getProductId())) {
+                slowLaneProducts.add(hotProduct);
                 return;
             }
-            fastLaneProducts.add(product);
+            fastLaneProducts.add(hotProduct);
         });
 
         List<CompletableFuture<Void>> fastLaneFutures = fastLaneProducts.stream()
@@ -197,7 +197,7 @@ public class ProductService {
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
         BigDecimal discountCoinValue = resolveDiscountValue(isToday, productEntity, affiliateLinks.getFirst());
-
+        // Colocar em paralelo os dois serviços, discountCoinValue e getAvera
         BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
         BigDecimal currentPrice = finalPriceService.calculateFinalPrice(hotProduct, bestSkuProduct, discountCoinValue);
         if (isDataPriceValid(averagePrice, currentPrice)) return;

@@ -1,6 +1,6 @@
 package bot.promotion.product.service;
 
-import bot.promotion.aliexpress.client.CotacaoRequest;
+import bot.promotion.aliexpress.scheduler.CotacaoRequest;
 import bot.promotion.product.dto.HotProduct;
 import bot.promotion.product.dto.SkuProduct;
 import bot.promotion.product.entity.Coupon;
