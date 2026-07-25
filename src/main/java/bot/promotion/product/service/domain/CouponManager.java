@@ -22,13 +22,14 @@ public class CouponManager {
 
     public void fetchAllCoupons() {
         allCoupons = couponRepo.findAllCouponsByTime(LocalDateTime.now(clock));
+        if (allCoupons == null || allCoupons.isEmpty()) {
+            notify.sendWarningMessage("Coupons is null or empty in line 26 of CouponManager");
+        }
     }
 
     public List<Coupon> getCouponAvailable(SkuProduct skuProduct) {
-        if (allCoupons == null || allCoupons.isEmpty()) {
-            notify.sendWarningMessage("Coupons is null or empty in line 26 of CouponManager");
-            return null;
-        }
+        if (allCoupons == null || allCoupons.isEmpty()) return List.of();
+
 
         Double valueProduct = Double.parseDouble(skuProduct.getSalePrice());
         return allCoupons.stream()

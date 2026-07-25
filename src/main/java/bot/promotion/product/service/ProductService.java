@@ -153,6 +153,7 @@ public class ProductService {
         List<CompletableFuture<Void>> fastLaneFutures = fastLaneProducts.stream()
                 .map(hp -> CompletableFuture.runAsync(() -> {
                     try {
+                        safeSleep(1000);
                         processNoExistingDbProduct(hp);
                     } catch (Exception e) {
                         notify.sendErrorMessage("fast lane async processing fails for product ID " + hp.getProductId(), e);
@@ -197,7 +198,7 @@ public class ProductService {
         if (affiliateLinks == null || affiliateLinks.isEmpty()) return;
 
         BigDecimal discountCoinValue = resolveDiscountValue(isToday, productEntity, affiliateLinks.getFirst());
-        // Colocar em paralelo os dois serviços, discountCoinValue e getAvera
+
         BigDecimal averagePrice = getAveragePrice(productEntity, bestSkuProduct);
         BigDecimal currentPrice = finalPriceService.calculateFinalPrice(hotProduct, bestSkuProduct, discountCoinValue);
         if (isDataPriceValid(averagePrice, currentPrice)) return;
@@ -342,6 +343,14 @@ public class ProductService {
                 .filter(Objects::nonNull)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
+    }
+
+    private void safeSleep(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            notify.sendErrorMessage("Safe sleep interrupted on fast lane ", e);
+        }
     }
 
     private void publishProduct(HotProduct product, SkuProduct skuProduct, List<String> affiliateLinks, BigDecimal coinPercentageDiscount, boolean isPriority) {
