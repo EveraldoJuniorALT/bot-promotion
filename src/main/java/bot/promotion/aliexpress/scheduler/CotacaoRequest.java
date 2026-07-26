@@ -1,4 +1,4 @@
-package bot.promotion.aliexpress.client;
+package bot.promotion.aliexpress.scheduler;
 
 import bot.promotion.aliexpress.dto.BCBApiResponse;
 import bot.promotion.telegram.service.NotificationService;
